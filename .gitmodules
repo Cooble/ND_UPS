@@ -1,0 +1,6 @@
+[submodule "NiceDay/NiceDay/vendor/glm"]
+	path = NiceDay/NiceDay/vendor/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "NiceDay/NiceDay/vendor/spdlog"]
+	path = NiceDay/NiceDay/vendor/spdlog
+	url = https://github.com/gabime/spdlog.git

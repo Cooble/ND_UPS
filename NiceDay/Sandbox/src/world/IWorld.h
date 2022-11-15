@@ -1,8 +1,6 @@
 ﻿#pragma once
 #include "ndpch.h"
-#include "particle/ParticleManager.h"
 #include "entity/EntityManager.h"
-#include "memory/stack_allocator.h"
 
 struct BlockStruct;
 struct Chunk;
@@ -59,7 +57,6 @@ public:
 
 	//=================================PARTICLES==============================
 
-	virtual void spawnParticle(ParticleID id, const glm::vec2& pos, const glm::vec2& speed, const glm::vec2& acc, int life, float rotation = 0) = 0;
 
 	//=================================ENTITIES===============================
 
@@ -90,7 +87,5 @@ public:
 	/**
 	 *	@return all (tile)entities 
 	 */
-	virtual nd::temp_vector<EntityID> getEntitiesInRadius(const glm::vec2& centerPos, float radius) = 0;
-
 	
 };

@@ -1,5 +1,4 @@
 #include "SandboxControls.h"
-#include "event/ControlMap.h"
 #include "event/KeyEvent.h"
 
 using namespace nd;
@@ -20,16 +19,4 @@ ControlType Controls::AUTO_BLOCK_PICKER =			(ControlType)KeyCode::V;
 void Controls::init()
 {
 	using namespace Controls;
-	ControlMap::registerControl("SPAWN_ENTITY",		&SPAWN_ENTITY);
-	ControlMap::registerControl("DROP_ITEM",		&DROP_ITEM);
-	ControlMap::registerControl("OPEN_CONSOLE",		&OPEN_CONSOLE);
-	ControlMap::registerControl("OPEN_INVENTORY",	&OPEN_INVENTORY);
-	ControlMap::registerControl("GO_UP",			&GO_UP);
-	ControlMap::registerControl("GO_DOWN",			&GO_DOWN);
-	ControlMap::registerControl("GO_LEFT",			&GO_LEFT);
-	ControlMap::registerControl("GO_RIGHT",			&GO_RIGHT);
-	ControlMap::registerControl("SPAWN_TNT",		&SPAWN_TNT);
-	ControlMap::registerControl("SPAWN_BULLETS",	&SPAWN_BULLETS);
-	ControlMap::registerControl("FLY_MODE",	&FLY_MODE);
-	ControlMap::registerControl("AUTO_BLOCK_PICKER",	&AUTO_BLOCK_PICKER);
 }

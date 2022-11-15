@@ -1,33 +1,21 @@
-#pragma once
+﻿#pragma once
 #include "ndpch.h"
-#include "WorldIO.h"
-#include "gen/WorldGen.h"
-#include "block/Block.h"
-#include "entity/WorldEntity.h"
+#include "world/World.h"
+#include "world/WorldIO.h"
+#include "world/LightCalculator.h"
+#include "world/gen/WorldGen.h"
+#include "world/block/Block.h"
+#include "world/entity/WorldEntity.h"
 #include "world/WorldTime.h"
-#include "ThreadedWorldGen.h"
-#include "BlockAccess.h"
+
+#include "memory/stack_allocator.h"
 #include "core/NBT.h"
 
 
-class IChunkProvider;
 
-constexpr int DYNAMIC_ID_ENTITY_MANAGER = std::numeric_limits<int>::max() - 0;
-constexpr int DYNAMIC_ID_WORLD_NBT = std::numeric_limits<int>::max() - 1;
+class ServerWorld;
 
-const int WORLD_CHUNK_BIT_SIZE = 5;
-const int WORLD_CHUNK_SIZE = 32;
-const int WORLD_CHUNK_AREA = WORLD_CHUNK_SIZE * WORLD_CHUNK_SIZE;
-
-static const int BITS_FOR_CHUNK_LOC = 16;
-
-constexpr int CHUNK_DIRTY_FLAG = BIT(1); //in next update chunk graphics will be reloaded into chunkrenderer
-constexpr int CHUNK_LOCKED_FLAG = BIT(2); //dont unload this chunk its being worked on by main thread
-
-typedef int ChunkID;
-class World;
-
-class Chunk
+class ServerChunk
 {
 private:
 	int m_x, m_y;
@@ -35,12 +23,7 @@ private:
 	//posxy
 
 	BlockStruct m_blocks[WORLD_CHUNK_AREA];
-	uint8_t m_light_levels[WORLD_CHUNK_AREA];
 	uint32_t m_flags = 0;
-	int m_biome;
-
-	//multithreading light
-	nd::JobAssignment m_light_job;
 
 public:
 	friend class World;
@@ -55,7 +38,7 @@ public:
 	// cannot unload locked chunk
 	bool isLocked() const
 	{
-		return (m_flags & CHUNK_LOCKED_FLAG) != 0 || (!m_light_job.isDone());
+		return (m_flags & CHUNK_LOCKED_FLAG) != 0;
 	}
 
 	bool isDirty() const { return m_flags & CHUNK_DIRTY_FLAG; }
@@ -66,43 +49,22 @@ public:
 		else m_flags &= ~CHUNK_LOCKED_FLAG;
 	}
 
-	nd::JobAssignment& getLightJob() { return m_light_job; }
-
 	BlockStruct& block(int x, int y)
 	{
-		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&&y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
+		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&& y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
 		return m_blocks[y << WORLD_CHUNK_BIT_SIZE | x];
 	}
 
 	const BlockStruct& block(int x, int y) const { return m_blocks[y << WORLD_CHUNK_BIT_SIZE | x]; }
 
-	uint8_t& lightLevel(int x, int y)
-	{
-		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&&y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
-		return m_light_levels[y << WORLD_CHUNK_BIT_SIZE | x];
-	}
+	
 
-	uint8_t lightLevel(int x, int y) const
-	{
-		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&&y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
-		return m_light_levels[y << WORLD_CHUNK_BIT_SIZE | x];
-	}
-
-	void markDirty(bool dirty=true)
+	void markDirty(bool dirty = true)
 	{
 		if (dirty) m_flags |= CHUNK_DIRTY_FLAG;
 		else m_flags &= ~CHUNK_DIRTY_FLAG;
 	}
 
-	int getBiome() const { return m_biome; }
-
-	void setBiome(int biome_id) { m_biome = biome_id; }
-
-	/*inline Phys::Rectangle getChunkRectangle() const
-	{
-		return Phys::Rectangle::createFromDimensions(m_x * WORLD_CHUNK_SIZE, m_y * WORLD_CHUNK_SIZE, WORLD_CHUNK_SIZE,
-		                                             WORLD_CHUNK_SIZE);
-	}*/
 
 	static int getChunkIDFromWorldPos(int wx, int wy)
 	{
@@ -110,19 +72,9 @@ public:
 	}
 };
 
-struct WorldInfo
-{
-	long seed;
-	int chunk_width, chunk_height;
-	int terrain_level;
-	long long time = 0;
-	char name[100]{};
-	EntityID player_id;
-	ChunkID playerChunk;
-};
 
 
-class World : public BlockAccess
+class ServerWorld : public BlockAccess
 {
 	friend class WorldIO::Session;
 	friend class WorldGen;
@@ -154,13 +106,12 @@ public:
 		{
 		}
 		ChunkHeader(const ChunkHeader& h) :
-		m_chunkId(h.m_chunkId),
-		m_job(h.m_job),
-		m_is_accessible(h.m_is_accessible),
-		m_state(h.m_state)
+			m_chunkId(h.m_chunkId),
+			m_is_accessible(h.m_is_accessible),
+			m_state(h.m_state)
 		{
 		}
-		
+
 		ChunkID getChunkID() const { return m_chunkId; }
 		nd::JobAssignmentP getJob() { return &m_job; }
 		const nd::JobAssignment& getJobConst() const { return m_job; }
@@ -180,17 +131,18 @@ public:
 
 	static int toChunkCoord(float x) { return toChunkCoord((int)x); }
 	static int toChunkCoord(int x) { return x >> WORLD_CHUNK_BIT_SIZE; }
+
 	float m_time_speed = 1;
-	bool m_dayNightCycleEnable = true;
 private:
-	nd::Utils::Bitset m_is_chunk_gen_map;
+	nd::utils::Bitset m_is_chunk_gen_map;
+
 	WorldGen m_gen;
 	std::vector<Chunk> m_chunks;
 	// will be set to true after first batch of chunks is generated (used to start light snapshots)
-	bool m_first_chunks_generated=false;
+	bool m_first_chunks_generated = false;
 	std::vector<ChunkHeader> m_chunk_headers;
 	nd::NBT m_world_nbt;
-	IChunkProvider* m_chunk_provider;
+	
 	ThreadedWorldGen m_threaded_gen;
 
 	bool m_has_chunk_changed = false;
@@ -208,13 +160,8 @@ private:
 	nd::DynamicSaver m_nbt_saver;
 
 	std::vector<EntityID> m_entity_array;
-	std::unordered_map<int64_t, EntityID> m_tile_entity_map;
-	std::vector<EntityID> m_entity_array_buff;
-	std::unordered_map<int64_t, EntityID> m_tile_entity_array_buff;
 
-
-	bool m_edit_buffer_enable = false;
-	std::queue<std::pair<int, int>> m_edit_buffer; //location x,y for editted blocks
+//std::queue<std::pair<int, int>> m_edit_buffer; //location x,y for editted blocks
 
 private:
 	void init();
@@ -255,6 +202,7 @@ public:
 	World(std::string file_path, const WorldInfo& info);
 	~World();
 
+	LightCalculator& getLightCalculator() { return m_light_calc; }
 	void onUpdate();
 	void tick();
 
@@ -271,7 +219,7 @@ public:
 
 	bool isBlockValid(int x, int y) const
 	{
-		return x >= 0 && y >= 0 && x < getInfo().chunk_width * WORLD_CHUNK_SIZE && y < getInfo().chunk_height *
+		return x >= 0 && y >= 0 && x < getInfo().chunk_width* WORLD_CHUNK_SIZE&& y < getInfo().chunk_height*
 			WORLD_CHUNK_SIZE;
 	}
 
@@ -282,7 +230,7 @@ public:
 
 	bool isChunkValid(half_int chunkid) const
 	{
-		return chunkid.x >= 0 && chunkid.x < getInfo().chunk_width && chunkid.y >= 0 && chunkid.y < getInfo().
+		return chunkid.x >= 0 && chunkid.x < getInfo().chunk_width&& chunkid.y >= 0 && chunkid.y < getInfo().
 			chunk_height;
 	}
 
@@ -291,13 +239,13 @@ public:
 
 	int getChunkSaveOffset(int id) const
 	{
-		return getChunkSaveOffset(half_int::X(id),half_int::Y(id));
+		return getChunkSaveOffset(half_int::X(id), half_int::Y(id));
 	}
 
-	
-	int getChunkSaveOffset(int cx,int cy) const
+
+	int getChunkSaveOffset(int cx, int cy) const
 	{
-		return cx + cy*m_info.chunk_width;
+		return cx + cy * m_info.chunk_width;
 	};
 	//==============CHUNK METHODS========================================================================
 
@@ -318,9 +266,9 @@ public:
 	// returns if chunk can be normally accessed (it is not in being loaded state)
 	bool isChunkFullyLoaded(int id) const { return getChunkIndex(id) != -1; }
 
-	void unloadChunks(std::set<int>& chunk_ids);
+	void unloadChunks(nd::temp_set<int>& chunk_ids);
 	static void updateChunkBounds(BlockAccess& world, int cx, int cy, int bitBounds);
-	void loadChunksAndGen(std::set<int>& toLoadChunks);
+	void loadChunksAndGen(nd::temp_set<int>& toLoadChunks);
 
 	//==============BLOCK METHODS=======================================================================
 
@@ -391,8 +339,21 @@ public:
 
 	auto& getNBTSaver() { return m_nbt_saver; }
 	EntityManager& getEntityManager() { return m_entity_manager; }
-	
+	ParticleManager** particleManager() { return &m_particle_manager; }
 
+	void spawnParticle(ParticleID id, const glm::vec2& pos, const glm::vec2& speed, const glm::vec2& acc, float rotation = 0, half_int texturePos = half_int(-1, -1));
+
+	// spawn break particles around block
+	// amount in interval 1 - 32 is probability of spawning one particle
+	//		- 1 means smallest probability of spawning
+	//		- 32 means every particle is spawned
+	void spawnBlockBreakParticles(int x, int y, int amount = 32);
+
+	// spawn break particles around wall
+	// amount in interval 1 - 32 is probability of spawning one particle
+	//		- 1 means smallest probability of spawning
+	//		- 32 means every particle is spawned
+	void spawnWallBreakParticles(int x, int y, int amount = 32);
 
 
 	WorldEntity* getLoadedEntity(EntityID id)
@@ -402,14 +363,14 @@ public:
 
 	WorldEntity* getLoadedTileEntity(int x, int y)
 	{
-		auto f = m_tile_entity_map.find(ndPhys::toInt64(x,y));
+		auto f = m_tile_entity_map.find(ndPhys::toInt64(x, y));
 		if (f == m_tile_entity_map.end())
 			return nullptr;
 		return m_entity_manager.entity(f->second);
 	}
 
-	std::vector<WorldEntity*> getEntitiesInRadius(const glm::vec2& pos,float radius);
-	std::vector<WorldEntity*> getEntitiesAtLocation(const glm::vec2& pos);
+	nd::temp_vector<WorldEntity*> getEntitiesInRadius(const glm::vec2& pos, float radius);
+	nd::temp_vector<WorldEntity*> getEntitiesAtLocation(const glm::vec2& pos);
 	const auto& getLoadedEntities() { return m_entity_array; }
 	const auto& getLoadedTileEntities() { return m_tile_entity_map; }
 

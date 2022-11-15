@@ -79,6 +79,12 @@ inline TimerStaper::~TimerStaper()
 	if (!stop)
 		time();
 }
+inline uint64_t nowTime()
+{
+	using namespace std::chrono;
+	return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
 
 #define ND_RESLOC(x)\
 	::nd::ResourceMan::getResourceLoc(x)

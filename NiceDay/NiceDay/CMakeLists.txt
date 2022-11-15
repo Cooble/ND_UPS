@@ -6,10 +6,6 @@ LIST( APPEND CMAKE_MODULE_PATH
 )
 
 
-
-
-
-
 #this macro will disable package finding
     macro (nd_disable_find_package)
         set(ND_DISABLE_FIND_PACKAGE ON CACHE STRING "Disabling find_package macro" FORCE)
@@ -57,7 +53,7 @@ LIST( APPEND CMAKE_MODULE_PATH
 # DEFINES
     target_compile_definitions(NiceDay PUBLIC 
         "_CRT_SECURE_NO_WARNINGS"
-        #"LUA_BINARIES"
+   
         "$<$<PLATFORM_ID:Windows>:ND_PLATFORM_WINDOWS>"
         "$<$<PLATFORM_ID:Linux>:ND_PLATFORM_LINUX>"
         )
@@ -87,8 +83,6 @@ LIST( APPEND CMAKE_MODULE_PATH
     #        $<TARGET_FILE_DIR:Runner>)
     
     # simple libs (no config needed and directory is same as target name)
-    
-    add_my_lib(lua)
 
     # == glm (no need to subdir (header-only))
     #set(GLM_TEST_ENABLE OFF CACHE BOOL "" FORCE)

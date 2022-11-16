@@ -1,12 +1,10 @@
 ﻿#include "ndpch.h"
 #include "PriorGen.h"
-#include "stb_image.h"
-#include "stb_image_write.h"
+
 #include "world/block/basic_blocks.h"
 #include "world/block/block_datas.h"
 #include "world/World.h"
 //#include "OpenSimplexNoise.hpp"
-#include "TreeGen.h"
 using namespace nd;
 
 
@@ -305,45 +303,4 @@ inline static PriorGen::Pix blockToColor(const BlockStruct& b)
 		return { 0, 255, 100 };
 	}
 	return {0, 0, 0};
-}
-
-void PriorGen::exportImage()
-{
-	Pix* image = (Pix*)malloc(m_width * m_height * sizeof(Pix));
-
-	for (int j = 0; j < m_height; ++j)
-		for (int i = 0; i < m_width; ++i)
-		{
-			int inverseY = m_height - j - 1;
-
-			image[inverseY * m_width + i] = blockToColor(getBlock(i, j));
-		}
-
-
-	auto out = stbi_write_png((m_file_path + ".png").c_str(), m_width, m_height, STBI_rgb_alpha, image,
-	                          m_width * sizeof(Pix));
-
-	free(image);
-	ND_INFO("Exported image with outpyr {}", out);
-}
-
-Texture* PriorGen::buildTexture()
-{
-	auto t = Texture::create(
-		TextureInfo().size(m_width, m_height).filterMode(TextureFilterMode::NEAREST).format(TextureFormat::RGB));
-	updateTexture(t);
-	return t;
-}
-
-void PriorGen::updateTexture(Texture* t)
-{
-	for (int y = 0; y < m_height; ++y)
-	{
-		for (int x = 0; x < m_width; ++x)
-		{
-			//auto yy = m_height - 1 - y;
-			m_pixels[y * m_width + x] = blockToColor(m_map[y * m_width + x]);
-		}
-	}
-	t->setPixels((uint8_t*)m_pixels);
 }

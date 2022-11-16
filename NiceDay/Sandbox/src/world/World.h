@@ -5,12 +5,8 @@
 #include "block/Block.h"
 #include "entity/WorldEntity.h"
 #include "world/WorldTime.h"
-#include "ThreadedWorldGen.h"
-#include "BlockAccess.h"
 #include "core/NBT.h"
 
-
-class IChunkProvider;
 
 constexpr int DYNAMIC_ID_ENTITY_MANAGER = std::numeric_limits<int>::max() - 0;
 constexpr int DYNAMIC_ID_WORLD_NBT = std::numeric_limits<int>::max() - 1;
@@ -35,12 +31,8 @@ private:
 	//posxy
 
 	BlockStruct m_blocks[WORLD_CHUNK_AREA];
-	uint8_t m_light_levels[WORLD_CHUNK_AREA];
 	uint32_t m_flags = 0;
-	int m_biome;
 
-	//multithreading light
-	nd::JobAssignment m_light_job;
 
 public:
 	friend class World;
@@ -55,7 +47,7 @@ public:
 	// cannot unload locked chunk
 	bool isLocked() const
 	{
-		return (m_flags & CHUNK_LOCKED_FLAG) != 0 || (!m_light_job.isDone());
+		return (m_flags & CHUNK_LOCKED_FLAG) != 0;
 	}
 
 	bool isDirty() const { return m_flags & CHUNK_DIRTY_FLAG; }
@@ -66,8 +58,6 @@ public:
 		else m_flags &= ~CHUNK_LOCKED_FLAG;
 	}
 
-	nd::JobAssignment& getLightJob() { return m_light_job; }
-
 	BlockStruct& block(int x, int y)
 	{
 		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&&y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
@@ -76,17 +66,6 @@ public:
 
 	const BlockStruct& block(int x, int y) const { return m_blocks[y << WORLD_CHUNK_BIT_SIZE | x]; }
 
-	uint8_t& lightLevel(int x, int y)
-	{
-		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&&y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
-		return m_light_levels[y << WORLD_CHUNK_BIT_SIZE | x];
-	}
-
-	uint8_t lightLevel(int x, int y) const
-	{
-		ASSERT(x >= 0 && x < WORLD_CHUNK_SIZE&&y >= 0 && y < WORLD_CHUNK_SIZE, "Invalid chunk coords!");
-		return m_light_levels[y << WORLD_CHUNK_BIT_SIZE | x];
-	}
 
 	void markDirty(bool dirty=true)
 	{
@@ -94,15 +73,6 @@ public:
 		else m_flags &= ~CHUNK_DIRTY_FLAG;
 	}
 
-	int getBiome() const { return m_biome; }
-
-	void setBiome(int biome_id) { m_biome = biome_id; }
-
-	/*inline Phys::Rectangle getChunkRectangle() const
-	{
-		return Phys::Rectangle::createFromDimensions(m_x * WORLD_CHUNK_SIZE, m_y * WORLD_CHUNK_SIZE, WORLD_CHUNK_SIZE,
-		                                             WORLD_CHUNK_SIZE);
-	}*/
 
 	static int getChunkIDFromWorldPos(int wx, int wy)
 	{
@@ -122,7 +92,7 @@ struct WorldInfo
 };
 
 
-class World : public BlockAccess
+class World
 {
 	friend class WorldIO::Session;
 	friend class WorldGen;
@@ -137,63 +107,14 @@ public:
 		UNLOADED
 	};
 
-	class ChunkHeader
-	{
-		ChunkID m_chunkId = std::numeric_limits<int>::max();
-		nd::JobAssignment m_job;
-		ChunkState m_state = UNLOADED;
-
-		// whether you can call setBlock etc.
-		// chunk might be generated at the moment so always check this
-		bool m_is_accessible = false;
-
-	public:
-		ChunkHeader() = default;
-
-		ChunkHeader(ChunkID id) : m_chunkId(id)
-		{
-		}
-		ChunkHeader(const ChunkHeader& h) :
-		m_chunkId(h.m_chunkId),
-		m_job(h.m_job),
-		m_is_accessible(h.m_is_accessible),
-		m_state(h.m_state)
-		{
-		}
-		
-		ChunkID getChunkID() const { return m_chunkId; }
-		nd::JobAssignmentP getJob() { return &m_job; }
-		const nd::JobAssignment& getJobConst() const { return m_job; }
-
-		bool isFree() const
-		{
-			return m_chunkId == std::numeric_limits<int>::max();
-		}
-
-		bool operator==(const ChunkHeader& h) { return m_chunkId == h.m_chunkId; }
-		bool operator!=(const ChunkHeader& h) { return !(m_chunkId == h.m_chunkId); }
-		void setState(ChunkState state) { m_state = state; }
-		ChunkState getState() const { return m_state; }
-		void setAccessible(bool a) { m_is_accessible = a; }
-		bool isAccessible() const { return m_is_accessible; }
-	};
 
 	static int toChunkCoord(float x) { return toChunkCoord((int)x); }
 	static int toChunkCoord(int x) { return x >> WORLD_CHUNK_BIT_SIZE; }
-	float m_time_speed = 1;
-	bool m_dayNightCycleEnable = true;
+
 private:
-	nd::Utils::Bitset m_is_chunk_gen_map;
 	WorldGen m_gen;
 	std::vector<Chunk> m_chunks;
-	// will be set to true after first batch of chunks is generated (used to start light snapshots)
-	bool m_first_chunks_generated=false;
-	std::vector<ChunkHeader> m_chunk_headers;
 	nd::NBT m_world_nbt;
-	IChunkProvider* m_chunk_provider;
-	ThreadedWorldGen m_threaded_gen;
-
-	bool m_has_chunk_changed = false;
 
 	WorldInfo m_info;
 	std::string m_file_path;
@@ -220,31 +141,7 @@ private:
 	void init();
 	void onBlocksChange(int x, int y, int deep = 0);
 	void onWallsChange(int xx, int yy, BlockStruct& blok);
-	int getNextFreeChunkIndex(int startSearchIndex = 0);
-	void genChunks(nd::defaultable_map<int, int, 0>& toUpdateChunks);
-	void updateLight(nd::defaultable_map<int, int, 0>& toUpdateChunks);
-
-	void loadEntFinal(nd::defaultable_map<int, int, 0>& toUpdateChunks, std::vector<int>& chunkEntitiesToLoad);
-
-	nd::JobAssignmentP loadEntities2(std::vector<int>& chunksToLoad);
-
-	nd::JobAssignmentP updateBounds2(nd::defaultable_map<int, int, 0>& toUpdateChunks);
-	void loadLightResources(int x, int y);
-
-	ChunkState getChunkState(int chunkID)
-	{
-		auto it = m_local_offset_header_map.find(chunkID);
-		if (it == m_local_offset_header_map.end())
-			return ChunkState::UNLOADED;
-		return m_chunk_headers[it->second].getState();
-	}
-
-	void setChunkState(int chunkID, ChunkState state)
-	{
-		auto it = m_local_offset_header_map.find(chunkID);
-		ASSERT(it != m_local_offset_header_map.end(), "setting chunk state to chunk whose header is missing");
-		m_chunk_headers[it->second].setState(state);
-	}
+	void updateChunkBounds(int cx, int cy, int bitBounds);
 
 	bool isValidLocation(float wx, float wy) const
 	{
@@ -257,17 +154,6 @@ public:
 
 	void onUpdate();
 	void tick();
-
-
-	//returns if a chunk was loaded or unloaded and resets
-	bool hasChunkChanged()
-	{
-		bool out = m_has_chunk_changed;
-
-		m_has_chunk_changed = false;
-		return out;
-	}
-	bool areFirstChunksGenerated() { return m_first_chunks_generated; }
 
 	bool isBlockValid(int x, int y) const
 	{
@@ -286,9 +172,6 @@ public:
 			chunk_height;
 	}
 
-	glm::vec4 getSkyLight();
-	bool isChunkGenerated(int chunkId);
-
 	int getChunkSaveOffset(int id) const
 	{
 		return getChunkSaveOffset(half_int::X(id),half_int::Y(id));
@@ -303,25 +186,10 @@ public:
 
 	//return nullptr if chunk is not loaded or invalid coords 
 	//(won't cause chunk load)
-	const Chunk* getChunk(int x, int y) const;
-	Chunk* getChunkM(int cx, int cy) override;
+	Chunk* getChunkM(int cx, int cy);
+	int getChunkIndex(int cx, int cy) const;
 	Chunk* getChunkM(half_int chunkID) { return getChunkM(chunkID.x, chunkID.y); }
-
-	// return index if chunk is in memory and accessible or -1
-	int getChunkIndex(int id) const;
-	// return index if chunk is in memory (array) or -1
-	int getChunkInaccessibleIndex(int id) const;
-
-	// assign chunk load and gen task and returns
-	void loadChunk(int x, int y);
-
-	// returns if chunk can be normally accessed (it is not in being loaded state)
-	bool isChunkFullyLoaded(int id) const { return getChunkIndex(id) != -1; }
-
-	void unloadChunks(std::set<int>& chunk_ids);
-	static void updateChunkBounds(BlockAccess& world, int cx, int cy, int bitBounds);
-	void loadChunksAndGen(std::set<int>& toLoadChunks);
-
+	
 	//==============BLOCK METHODS=======================================================================
 
 	//return nullptr if block is not loaded or invalid coords 
@@ -333,7 +201,7 @@ public:
 	const BlockStruct* getBlockOrAir(int x, int y) const;
 
 	//return nullptr if invalid coords 
-	BlockStruct* getBlockM(int x, int y) override;
+	BlockStruct* getBlockM(int x, int y);
 
 
 	//return is block at coords is air or true if outside the map
@@ -350,16 +218,16 @@ public:
 	}
 
 	//automatically calls chunk.markdirty() to update graphics and call onNeighborBlockChange()
-	void setBlockWithNotify(int x, int y, BlockStruct& block) override;
+	void setBlockWithNotify(int x, int y, BlockStruct& block);
 
 	// just changes block value of blockstruct (no notification)
-	void setBlock(int x, int y, BlockStruct& block) override;
+	void setBlock(int x, int y, BlockStruct& block);
 	void setBlock(int x, int y, int blockid) { setBlock(x, y, BlockStruct(blockid)); }
 	void setBlockWithNotify(int x, int y, int blockid) { setBlockWithNotify(x, y, BlockStruct(blockid)); }
 
 
 	//automatically calls chunk.markdirty() to update graphics and call onNeighbourWallChange()
-	void setWallWithNotify(int x, int y, int wall_id) override;
+	void setWallWithNotify(int x, int y, int wall_id);
 
 	// ====buffering block changes====
 	//opens block set session
@@ -377,7 +245,6 @@ public:
 	//==========INFO==================================================
 
 	std::unordered_map<int, int>& getMap() { return m_local_offset_header_map; }
-	auto& getHeaders() const { return m_chunk_headers; }
 	long long getWorldTicks() const { return m_info.time; }
 	WorldTime getWorldTime() const { return WorldTime(m_info.time); }
 	std::string getName() const { return m_info.name; }
@@ -391,95 +258,9 @@ public:
 
 	auto& getNBTSaver() { return m_nbt_saver; }
 	EntityManager& getEntityManager() { return m_entity_manager; }
-	
 
-
-
-	WorldEntity* getLoadedEntity(EntityID id)
-	{
-		return m_entity_manager.entity(id);
-	}
-
-	WorldEntity* getLoadedTileEntity(int x, int y)
-	{
-		auto f = m_tile_entity_map.find(ndPhys::toInt64(x,y));
-		if (f == m_tile_entity_map.end())
-			return nullptr;
-		return m_entity_manager.entity(f->second);
-	}
-
-	std::vector<WorldEntity*> getEntitiesInRadius(const glm::vec2& pos,float radius);
-	std::vector<WorldEntity*> getEntitiesAtLocation(const glm::vec2& pos);
-	const auto& getLoadedEntities() { return m_entity_array; }
-	const auto& getLoadedTileEntities() { return m_tile_entity_map; }
-
-	void loadEntity(WorldEntity* pEntity);
-
-	void unloadEntity(EntityID id, bool isKilled = false);
-	void unloadTileEntity(EntityID worldEntity, bool isKilled = false);
-
-	// note: won't unload (tile)entity (from list), you need to remove it from local list yourself
-	// calls only entity onUnload() and removes entity from entity_manager
-	void unloadEntityNoDestruction(WorldEntity* entity, bool isKilled = false);
-
-	EntityID spawnEntity(WorldEntity* pEntity);
-
-	// kills normal or tile entity
-	// never call on yourself
-	// immediately calls ~() !
-	// to kill yourself safely use entity.markDead() instead (~() will be called after update() of that entity)
-	// if you know that entity is tilentity, use killTileEntity() instead
-	void killEntity(EntityID id);
-
-	// kills only tile entity
-	// never call on yourself
-	// immediately calls ~() !
-	// to kill yourself safely use entity.markDead() instead (~() will be called after update() of that entity)
-	void killTileEntity(EntityID id);
-
-	std::vector<EntityID>::const_iterator beginEntities()
-	{
-		return m_entity_array.begin();
-	}
-
-	std::vector<EntityID>::const_iterator endEntities()
-	{
-		return m_entity_array.end();
-	}
-
-	std::vector<EntityID>::const_reverse_iterator rbeginEntities()
-	{
-		return m_entity_array.rbegin();
-	}
-
-	std::vector<EntityID>::const_reverse_iterator rendEntities()
-	{
-		return m_entity_array.rend();
-	}
 
 	//==============SERIALIZATION============================
 public:
-	// saves everything except for loaded chunks (and entities in those chunks)
-	// return true if success
-	nd::JobAssignmentP saveWorld();
-
-	// loads everything except for chunks
-	// return true if success
-	nd::JobAssignmentP loadWorld();
-
-	// creates all neccessary world files and stuff
-	// no chunk generation
-	// return true if success
-	void genWorld();
-
-	bool isChunkGenerated(int cx, int cy) const
-	{
-		return m_is_chunk_gen_map[getChunkSaveOffset(cx, cy)];
-	}
-
-	void markChunkGenerated(int cx, int cy)
-	{
-		m_is_chunk_gen_map.set(getChunkSaveOffset(cx, cy), true);
-	}
 };
 

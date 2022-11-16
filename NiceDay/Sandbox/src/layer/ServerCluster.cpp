@@ -11,9 +11,9 @@ void ServerCluster::serverLoop(std::shared_ptr<ServerInstance> server)
 
 	while (!server->closePending)
 	{
-		auto time = nowTime();
+		auto time = nd::nowTime();
 		server->server->onUpdate();
-		auto updateTime = nowTime() - time;
+		auto updateTime = nd::nowTime() - time;
 
 		//take a break for the rest of a tick
 		auto sleepFor = millisPerTick - updateTime;

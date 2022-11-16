@@ -8,7 +8,6 @@ class NBT;
 }
 
 class nd::NBT;
-class ItemStack;
 constexpr int EFLAG_TEMPORARY =		BIT(0);//will be killed on chunk unload
 constexpr int EFLAG_CHUNK_LOADER =	BIT(1);//will keep chunks around loaded (usually Player)
 constexpr int EFLAG_COLLIDER  =		BIT(2);//will collide with other entities (will be pushed by them)
@@ -47,14 +46,7 @@ public:
 	inline glm::vec2 getNPos() { return m_pos; }
 	inline bool isItemConsumer() const { return m_is_item_consumer; }
 	
-	/***
-	 * return true if item is desirable and there is space in the inventory for that
-	 */
-	virtual bool wantsItem(const ItemStack* stack) const { return false; }
-	/***
-	 * @return stack that was left after consumption
-	 */
-	virtual ItemStack* consumeItem(ItemStack* stack) { return stack; }
+	
 
 	virtual void update(World& w) {}
 

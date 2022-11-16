@@ -5,7 +5,6 @@
 #include "Prot.h"
 #include "ServerLayer.h"
 #include "server_constants.h"
-#include "core/App.h"
 #include "event/KeyEvent.h"
 #include "net/Multiplayer.h"
 
@@ -17,12 +16,12 @@ using namespace nd::net;
 
 bool LobbyServerLayer::ServerInfo::isAlive() const
 {
-	return nowTime() - lastSeen < server_const::SERVER_LOBBY_TIMEOUT;
+	return nd::nowTime() - lastSeen < server_const::SERVER_LOBBY_TIMEOUT;
 }
 
 void LobbyServerLayer::ServerInfo::updateLife()
 {
-	lastSeen = nowTime();
+	lastSeen = nd::nowTime();
 }
 
 LobbyServerLayer::ServerInfo::ServerInfo()
@@ -32,12 +31,12 @@ LobbyServerLayer::ServerInfo::ServerInfo()
 
 bool LobbyServerLayer::PlayerInfo::isAlive() const
 {
-	return nowTime() - lastSeen < server_const::PLAYER_LOBBY_TIMEOUT;
+	return nd::nowTime() - lastSeen < server_const::PLAYER_LOBBY_TIMEOUT;
 }
 
 void LobbyServerLayer::PlayerInfo::updateLife()
 {
-	lastSeen = nowTime();
+	lastSeen = nd::nowTime();
 }
 
 LobbyServerLayer::PlayerInfo::PlayerInfo()

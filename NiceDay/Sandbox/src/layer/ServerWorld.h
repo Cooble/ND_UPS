@@ -2,13 +2,11 @@
 #include "ndpch.h"
 #include "world/World.h"
 #include "world/WorldIO.h"
-#include "world/LightCalculator.h"
 #include "world/gen/WorldGen.h"
 #include "world/block/Block.h"
 #include "world/entity/WorldEntity.h"
 #include "world/WorldTime.h"
 
-#include "memory/stack_allocator.h"
 #include "core/NBT.h"
 
 

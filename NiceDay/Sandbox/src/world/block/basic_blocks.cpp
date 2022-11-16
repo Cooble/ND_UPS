@@ -1,12 +1,8 @@
 ﻿#include "ndpch.h"
 #include "basic_blocks.h"
-#include <utility>
 #include "world/World.h"
 #include "block_datas.h"
-#include "world/Camera.h"
-#include "world/entity/EntityRegistry.h"
-#include "world/entity/entities.h"
-#include "world/entity/EntityAllocator.h"
+
 
 //AIR=======================================
 BlockAir::BlockAir()
@@ -20,7 +16,7 @@ BlockAir::BlockAir()
 }
 
 
-bool BlockAir::onNeighborBlockChange(BlockAccess& world, int x, int y) const { return false; }
+bool BlockAir::onNeighborBlockChange(World& world, int x, int y) const { return false; }
 
 
 //STONE=======================================
@@ -32,7 +28,7 @@ BlockGrass::BlockGrass()
 	: Block("grass") {}
 
 
-bool BlockGrass::onNeighborBlockChange(BlockAccess& world, int x, int y) const
+bool BlockGrass::onNeighborBlockChange(World& world, int x, int y) const
 {
 	auto& block = *world.getBlockM(x, y);
 	int lastid = block.block_id;
@@ -74,7 +70,7 @@ BlockGlass::BlockGlass()
 	: Block("glass") {}
 
 
-bool BlockGlass::onNeighborBlockChange(BlockAccess& world, int x, int y) const
+bool BlockGlass::onNeighborBlockChange(World& world, int x, int y) const
 {
 	auto c = Block::onNeighborBlockChange(world, x, y);
 	auto& e = *world.getBlockM(x, y);

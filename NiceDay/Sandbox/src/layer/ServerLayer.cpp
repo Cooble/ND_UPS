@@ -10,12 +10,12 @@ using namespace nd::net;
 
 bool ServerLayer::PlayerInfo::isAlive() const
 {
-	return nowTime() - lastSeen < server_const::PLAYER_SERVER_TIMEOUT;
+	return nd::nowTime() - lastSeen < server_const::PLAYER_SERVER_TIMEOUT;
 }
 
 void ServerLayer::PlayerInfo::updateLife()
 {
-	lastSeen = nowTime();
+	lastSeen = nd::nowTime();
 }
 
 ServerLayer::PlayerInfo::PlayerInfo()
@@ -74,8 +74,6 @@ void ServerLayer::onAttach()
 	info.terrain_level = 16;
 	info.time = 0;
 	m_world = new World(m_name, info);
-	m_world->genWorld();
-	m_world.gen
 	ND_INFO("Generating world {}", info.name);
 }
 

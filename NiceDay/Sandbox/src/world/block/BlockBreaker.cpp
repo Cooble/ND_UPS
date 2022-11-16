@@ -1,6 +1,6 @@
 ﻿#include "BlockBreaker.h"
 #include "world/World.h"
-
+#include "BlockRegistry.h"
 BlockBreaker::BlockBreaker() {}
 
 void BlockBreaker::beginBreak(World& w, int x, int y)

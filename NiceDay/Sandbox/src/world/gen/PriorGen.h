@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "world/block/Block.h"
-#include "graphics/API/Texture.h"
 
 //class OpenSimplexNoise;
 
@@ -65,8 +64,4 @@ public:
 		ASSERT(x >= 0 && x < m_width&&y >= 0 && y < m_height, "INvalid coords");
 		return m_map[y*m_width + x];
 	}
-
-	void exportImage();
-	nd::Texture* buildTexture();
-	void updateTexture(nd::Texture* t);
 };

@@ -1,6 +1,5 @@
 ﻿#include "ndpch.h"
 #include "ssystem.h"
-#include "graphics/BatchRenderer2D.h"
 #include "world/World.h"
 /*
 MeshSystem::MeshSystem(BatchRenderer2D& r)

@@ -1,6 +1,5 @@
 ﻿#pragma once
-#include "componentManager.h"
-#include "graphics/BatchRenderer2D.h"
+
 /*
 class World;
 

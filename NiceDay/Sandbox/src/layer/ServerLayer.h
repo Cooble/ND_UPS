@@ -47,7 +47,7 @@ private:
 		std::vector<char> pending_pieces;
 		bool makeVacant() { c_id = -1; }
 		bool vacant() const { return c_id == -1; }
-		bool pending() const { return pending_pieces.empty(); }
+		bool pending() const { return !pending_pieces.empty(); }
 
 		void fillWithChunk(Chunk* chunk);
 
@@ -58,7 +58,7 @@ private:
 
 		char popPendingPiece()
 		{
-			ASSERT(!empty(), "cannot pop, array empty");
+			ASSERT(!pending(), "cannot pop, array empty");
 			auto out = pending_pieces[pending_pieces.size() - 1];
 			pending_pieces.pop_back();
 			return out;

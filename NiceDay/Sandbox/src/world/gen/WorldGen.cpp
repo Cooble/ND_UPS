@@ -125,5 +125,4 @@ void WorldGen::genLayer0(World& w,Chunk& c)
 				BlockRegistry::get().getWall(block.wallID()).onNeighbourWallChange(p, worldx, worldy);*/
 		}
 	}
-	c.last_save_time = w.getWorldTicks(); //mark it as was generated
 }

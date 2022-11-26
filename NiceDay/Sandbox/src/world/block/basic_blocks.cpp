@@ -16,7 +16,7 @@ BlockAir::BlockAir()
 }
 
 
-bool BlockAir::onNeighborBlockChange(World& world, int x, int y) const { return false; }
+bool BlockAir::onNeighborBlockChange(BlockAccess& world, int x, int y) const { return false; }
 
 
 //STONE=======================================
@@ -28,7 +28,7 @@ BlockGrass::BlockGrass()
 	: Block("grass") {}
 
 
-bool BlockGrass::onNeighborBlockChange(World& world, int x, int y) const
+bool BlockGrass::onNeighborBlockChange(BlockAccess& world, int x, int y) const
 {
 	auto& block = *world.getBlockM(x, y);
 	int lastid = block.block_id;
@@ -70,7 +70,7 @@ BlockGlass::BlockGlass()
 	: Block("glass") {}
 
 
-bool BlockGlass::onNeighborBlockChange(World& world, int x, int y) const
+bool BlockGlass::onNeighborBlockChange(BlockAccess& world, int x, int y) const
 {
 	auto c = Block::onNeighborBlockChange(world, x, y);
 	auto& e = *world.getBlockM(x, y);

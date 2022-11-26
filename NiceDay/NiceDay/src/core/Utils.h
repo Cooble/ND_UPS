@@ -176,8 +176,10 @@ inline bool operator==(const quarter_int& f0, const quarter_int& f1)
 	return f0.i == f1.i;
 }
 
-namespace nd {
-namespace Utils {
+namespace nd
+{
+namespace Utils
+{
 	//List is dynamically allocated, will get bigger if more items are pushed
 	//1. push() items to list
 	//2. call popMode()
@@ -452,7 +454,7 @@ constexpr T ipow(T num, unsigned int pow)
 
 #include <unordered_map>
 
-template <typename Key, typename T, T value = T()>
+template <typename Key, typename T, T value = T(), bool CreateIfNotExist = true>
 class defaultable_map : public std::unordered_map<Key, T>
 {
 public:
@@ -462,14 +464,20 @@ public:
 	T& operator[](const Key& key)
 	{
 		auto it = find(key);
-
 		if (it == end())
 		{
-			// insert default value
-			auto result = insert(std::make_pair(key, value));
-			it = result.first;
+			if constexpr (CreateIfNotExist)
+			{
+				// insert default value
+				auto result = insert(std::make_pair(key, value));
+				it = result.first;
+				return it->second;
+			}
+			if constexpr (!CreateIfNotExist)
+			{
+				return value;
+			}
 		}
-
 		return it->second;
 	}
 

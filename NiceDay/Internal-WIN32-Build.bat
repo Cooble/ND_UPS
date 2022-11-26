@@ -7,6 +7,6 @@ if /I "%c%" EQU "y" goto :somewhere
 exit
 
 :somewhere
-cmake .
+cmake -T v142 .
 pause
 exit

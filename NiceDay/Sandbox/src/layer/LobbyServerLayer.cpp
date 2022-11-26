@@ -9,6 +9,7 @@
 #include "net/Multiplayer.h"
 
 #include "net/net.h"
+#include "net/net_iterator.h"
 #include "world/block/Block.h"
 
 using namespace nd::net;

@@ -1,6 +1,7 @@
 #include "ndpch.h"
 
 #include "world/World.h"
+#include "world/BlockAccess.h"
 #include "Block.h"
 #include "BlockRegistry.h"
 #include "block_datas.h"
@@ -51,7 +52,7 @@ bool Block::hasCollisionBox() const { return m_collision_box_size != 0; }
 
 
 
-bool Block::isInGroup(World& w, int x, int y, int group) const
+bool Block::isInGroup(BlockAccess& w, int x, int y, int group) const
 {
 	auto b = w.getBlockM(x, y);
 	if (b)
@@ -68,7 +69,7 @@ bool Block::isInGroup(BlockID blockID, int group) const
 	return bl.isInConnectGroup(group) || bl.getID() == m_id;
 }
 
-bool Block::onNeighborBlockChange(World& world, int x, int y) const
+bool Block::onNeighborBlockChange(BlockAccess& world, int x, int y) const
 {
 	int mask = 0;
 	mask |= (!isInGroup(world, x, y + 1, m_block_connect_group) & 1) << 0;
@@ -131,13 +132,13 @@ Wall::~Wall() = default;
 
 
 
-static bool isWallFree(World& w, int x, int y)
+static bool isWallFree(BlockAccess& w, int x, int y)
 {
 	auto b = w.getBlockM(x, y);
 	return b ? b->isWallFree() : false; //if we dont know we will assume is occupied
 }
 
-void Wall::onNeighbourWallChange(World& w, int x, int y) const
+void Wall::onNeighbourWallChange(BlockAccess& w, int x, int y) const
 {
 	BlockStruct& block = *w.getBlockM(x, y);
 	auto p = w.getBlockM(x, y);

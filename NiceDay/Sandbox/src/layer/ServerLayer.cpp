@@ -70,7 +70,6 @@ void ServerLayer::onAttach()
 	strcpy(info.name, m_name.c_str());
 	info.chunk_height = 1;
 	info.chunk_width = 1;
-	info.playerChunk = 0;
 	info.terrain_level = 16;
 	info.time = 0;
 	m_world = new World(m_name, info);

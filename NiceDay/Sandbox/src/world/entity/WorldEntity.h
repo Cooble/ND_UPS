@@ -69,27 +69,6 @@ public:
 };
 
 struct BlockStruct;
-class TileEntity :public WorldEntity
-{
-protected:
-	WorldTime m_last_update_ticks;
-	WorldTime m_age;
-public:
-	TileEntity();
-	virtual ~TileEntity() = default;
 
-	void update(World& w) override;
-
-	void onSpawned(World& w) override;
-
-	virtual void onClicked(World& w, WorldEntity* entity);
-
-	BlockStruct& getBlockStruct(World& w);
-	void save(nd::NBT& src) override;
-	void load(nd::NBT& src) override;
-
-	int getX()const { return m_pos.x; }
-	int getY()const { return m_pos.y; }
-};
 
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "net_iterator.h"
+#include "net/net_iterator.h"
 #include "core/SUtil.h"
 #include "world/entity/EntityManager.h"
 

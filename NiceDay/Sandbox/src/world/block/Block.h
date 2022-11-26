@@ -4,6 +4,7 @@
 #include "world/entity/EntityManager.h"
 #include "world/entity/entity_datas.h"
 class BlockRegistry;
+class BlockAccess;
 class World;
 //STATES=========================================================
 //is air counterclockwise start from up(=lsb) (up left down right)
@@ -157,7 +158,7 @@ protected:
 
 	int m_block_connect_group;
 
-	bool isInGroup(World& w, int x, int y, int group) const;
+	bool isInGroup(BlockAccess& w, int x, int y, int group) const;
 	bool isInGroup(BlockID blockID, int group) const;
 
 	void setNoCollisionBox()
@@ -211,7 +212,7 @@ public:
 
 
 	//returns true if this block was changed as well
-	virtual bool onNeighborBlockChange(World& world, int x, int y) const;
+	virtual bool onNeighborBlockChange(BlockAccess& world, int x, int y) const;
 
 	virtual void onBlockPlaced(World& w, WorldEntity* e, int x, int y, BlockStruct& b) const;
 	virtual void onBlockDestroyed(World& w, WorldEntity* e, int x, int y, BlockStruct& b) const;
@@ -253,7 +254,7 @@ public:
 	constexpr bool isTransparent() const { return m_flags & 1 << BLOCK_FLAG_TRANSPARENT; }
 
 	//returns true if this block was changed as well
-	virtual void onNeighbourWallChange(World& world, int x, int y) const;
+	virtual void onNeighbourWallChange(BlockAccess& world, int x, int y) const;
 	virtual bool canBePlaced(World& w, int x, int y) const;
 
 

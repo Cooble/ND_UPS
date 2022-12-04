@@ -35,13 +35,13 @@ public class TextMesh {
     }
 
     public static class CursorProp {
-        int cursorPos = -1;
-        char cursorCharacter;
+        public int cursorPos = -1;
+        public char cursorCharacter;
 
-        Vector4f positions;
-        Vector4f uvs;
+        public Vector4f positions;
+        public Vector4f uvs;
 
-        boolean isEnabled() {
+        public boolean isEnabled() {
             return cursorPos != -1;
         }
     }

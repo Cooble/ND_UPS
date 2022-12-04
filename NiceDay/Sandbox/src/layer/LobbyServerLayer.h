@@ -22,7 +22,7 @@ class LobbyServerLayer : public nd::Layer
 private:
 	struct ServerInfo
 	{
-		size_t lastSeen;
+		size_t lastSeen=0;
 		nd::net::Address address;
 
 		bool isAlive() const;
@@ -32,7 +32,7 @@ private:
 	};
 	struct PlayerInfo
 	{
-		size_t lastSeen;
+		size_t lastSeen=0;
 		nd::net::Address address;
 		std::string serverName=GATE_WAY;
 		bool isAlive() const;

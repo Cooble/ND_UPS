@@ -1,12 +1,31 @@
+
 #include "layer/LobbyServerLayer.h"
 #include "layer/server_constants.h"
+#include "net/net.h"
+#include "net/net_iterator.h"
 #include "world/WorldIO.h"
 #ifndef ND_TEST
+
+
+
+// To enable tcp tunnel testing uncomment following line
+#define TEST_TCP_TUNNEL
+
+#ifdef TEST_TCP_TUNNEL
+#include "TestTCPTunnel.h"
+#endif
+
 int main()
 {
 	using namespace nd;
-	
 	Log::init();
+
+#ifdef TEST_TCP_TUNNEL
+	TestTCPTunnel::test();
+	return 0;
+#endif
+
+
 	
 	LobbyServerLayer layer;
 

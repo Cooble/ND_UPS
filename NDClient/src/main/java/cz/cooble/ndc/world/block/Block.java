@@ -103,6 +103,7 @@ public class Block {
         else
             m_flags &= ~(1 << flag);
     }
+
     public void setFlag(int flag) {
        setFlag(flag,true);
     }
@@ -133,7 +134,6 @@ public class Block {
         }
         return m_collision_box[0];
     }
-
 
     void onTextureLoaded(BlockTextureAtlas atlas) {
         m_texture_pos = atlas.getTexture("block/" + getStringID());

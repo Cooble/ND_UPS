@@ -11,22 +11,30 @@ import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
+import static cz.cooble.ndc.core.Utils.half_int;
 import static cz.cooble.ndc.world.WorldRenderManager.BLOCK_PIXEL_SIZE;
 import static org.lwjgl.glfw.GLFW.*;
 
 
 public class WorldLayer extends Layer {
 
+    private final ClientLayer client;
     private World world;
     private WorldRenderManager worldRenderManager;
     private Camera cam = new Camera();
     private Player player;
     private BatchRenderer2D renderer;
+    private GuiConsole console;
+
 
     static SpriteSheetResource res = new SpriteSheetResource(new Texture(
             new Texture.Info("res/images/borderBox.png")
-                        .filterMode(Texture.FilterMode.NEAREST)
-                        .format(Texture.Format.RGBA)), 1, 1);
+                    .filterMode(Texture.FilterMode.NEAREST)
+                    .format(Texture.Format.RGBA)), 1, 1);
+
+    public WorldLayer(ClientLayer client) {
+        this.client = client;
+    }
 
     @Override
     public void onAttach() {
@@ -35,13 +43,19 @@ public class WorldLayer extends Layer {
         RegistryLoader.load();
         ChunkMesh.init();
 
-        cam.setPosition(new Vector2f(0,0));
+        cam.setPosition(new Vector2f(0, 0));
+
+        client.openSession("karel");
+
 
         world = new World();
-        world.loadChunk(0, 0);
-        world.loadChunk(0, 1);
-        world.loadChunk(1, 0);
-        world.loadChunk(1, 1);
+        world.getInfo().chunk_width = 3;
+        world.getInfo().chunk_height = 3;
+
+        for (int x = 0; x < world.getInfo().chunk_width; x++)
+            for (int y = 0; y < world.getInfo().chunk_height; y++)
+                client.addPendingChunk(half_int(x, y));
+
 
         worldRenderManager = new WorldRenderManager(cam, world);
 
@@ -50,10 +64,13 @@ public class WorldLayer extends Layer {
         renderer = new BatchRenderer2D();
 
         Stats.bound_sprite = new Sprite(res);
-        Stats.bound_sprite.setSpriteIndex(0, 0,false,false,false);
+        Stats.bound_sprite.setSpriteIndex(0, 0, false, false, false);
         Stats.bound_sprite.setPosition(new Vector3f(0, 0, 0));
         Stats.bound_sprite.setSize(new Vector2f(1, 1));
         Stats.world = world;
+
+        console = new GuiConsole();
+        console.setOnEnter(client::addPendingCommand);
     }
 
 
@@ -93,13 +110,36 @@ public class WorldLayer extends Layer {
         GCon.enableDepthTest(false);
         GCon.blendFunc(GCon.Blend.SRC_ALPHA, GCon.Blend.ONE_MINUS_SRC_ALPHA);
         Effect.render(worldRenderManager.getEntityFBO().getAttachment(), Renderer.getDefaultFBO());
+
+        renderer.begin(Renderer.getDefaultFBO());
+
+        renderer.push(new Matrix4f().translate(new Vector3f(-1, -1, 0)));
+        renderer.push(new Matrix4f().scale(new Vector3f(2.f / App.get().getWindow().getWidth(), 2.f / App.get().getWindow().getHeight(), 1 )));
+        console.render(renderer);
+        renderer.pop(2);
+        renderer.flush();
     }
 
 
     @Override
     public void onUpdate() {
 
-            updatePlayer();
+        String s;
+        while ((s = client.getCommand())!=null)
+            console.addLine(s);
+
+        console.update();
+
+        if (client.hasPendingChunks()) {
+            var newChunk = client.getNewChunk();
+            if (newChunk != null) {
+                System.out.println("Received whoel chunk into world hurra " + newChunk);
+                world.setChunk(newChunk);
+            }
+            return;
+        }
+
+        updatePlayer();
         player.update(world);
         cam.setPosition(player.getPosition());
     }
@@ -109,6 +149,8 @@ public class WorldLayer extends Layer {
 
     @Override
     public void onEvent(Event e) {
+        if(!client.isSessionCreated())
+            return;
 
         if (e.getType() == Event.EventType.MouseMove) {
             var ee = (MouseMoveEvent) e;
@@ -124,14 +166,35 @@ public class WorldLayer extends Layer {
 
             //System.out.println("Wall : " + b);
 
-        }
-        else if (e instanceof WindowResizeEvent)
+        } else if (e instanceof WindowResizeEvent)
             worldRenderManager.onScreenResize();
 
+        if(console.isEditMode()){
+            console.onEvent(e);
+            if(e.handled)
+                return;
+        }
+        if (e instanceof KeyPressEvent) {
+            if (((KeyPressEvent) e).isRelease())
+                return;
+            if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_T) {
+                console.openEditMode();
+                return;
+            }
+            if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_J) {
+
+                Stats.move_through_blocks_enable ^= true;
+                Stats.fly_enable ^= true;
+                System.out.println(Stats.fly_enable);
+            }
+
+        }
         if (e instanceof MousePressEvent) {
             var pair = ((MousePressEvent) e).getLocation();
-            if(!((MousePressEvent) e).isRelease())
+            if (!((MousePressEvent) e).isRelease())
                 return;
+
+
 
 
             CURSOR_X = pair.x - App.get().getWindow().getWidth() / 2;
@@ -143,30 +206,29 @@ public class WorldLayer extends Layer {
             //System.out.println("Wall : " + (world.getBlockOrAir((int) CURSOR_X, (int) CURSOR_Y).isWallFullyOccupied() ? world.getBlockOrAir((int) CURSOR_X, (int) CURSOR_Y).wallID() : "-1"));
 
 
+            int primaryBlockId = BlockID.BLOCK_AIR;
+            int secondaryBlockID = BlockID.BLOCK_SNOW;
+
+            int primaryWallId = BlockID.WALL_AIR;
+            int secondaryWallID = BlockID.WALL_DIRT;
 
             if (!e.isShiftPressed()) {
-                if (((MousePressEvent) e).getButton() == MouseCode.LEFT)
-                    world.setBlockWithNotify((int) CURSOR_X, (int) CURSOR_Y, new BlockStruct(0));
-                else
-                    world.setBlockWithNotify((int) CURSOR_X, (int) CURSOR_Y, new BlockStruct(BlockID.BLOCK_SNOW));
+                if (((MousePressEvent) e).getButton() == MouseCode.LEFT) {
+                    world.setBlockWithNotify((int) CURSOR_X, (int) CURSOR_Y, new BlockStruct(primaryBlockId));
+                    client.addPendingBlockModify(new BlockModifyEvent(primaryBlockId, true, (int) CURSOR_X, (int) CURSOR_Y));
+                } else {
+                    world.setBlockWithNotify((int) CURSOR_X, (int) CURSOR_Y, new BlockStruct(secondaryBlockID));
+                    client.addPendingBlockModify(new BlockModifyEvent(secondaryBlockID, true, (int) CURSOR_X, (int) CURSOR_Y));
+                }
             } else {
-                if (((MousePressEvent) e).getButton() == MouseCode.LEFT)
-                    world.setWallWithNotify((int) CURSOR_X, (int) CURSOR_Y, BlockID.WALL_DIRT);
-                else{
-                    world.setWallWithNotify((int) CURSOR_X, (int) CURSOR_Y, 0);
-            }}
-
-        }
-
-        if (e instanceof KeyPressEvent) {
-            if(!((KeyPressEvent) e).isRelease())
-                return;
-             if(((KeyPressEvent) e).getFreshKeycode()==GLFW_KEY_J) {
-
-                 Stats.move_through_blocks_enable ^= true;
-                 Stats.fly_enable ^= true;
-                 System.out.println(Stats.fly_enable);
-             }
+                if (((MousePressEvent) e).getButton() == MouseCode.LEFT) {
+                    world.setWallWithNotify((int) CURSOR_X, (int) CURSOR_Y, primaryWallId);
+                    client.addPendingBlockModify(new BlockModifyEvent(primaryWallId, false, (int) CURSOR_X, (int) CURSOR_Y));
+                } else {
+                    world.setWallWithNotify((int) CURSOR_X, (int) CURSOR_Y, secondaryWallID);
+                    client.addPendingBlockModify(new BlockModifyEvent(secondaryWallID, false, (int) CURSOR_X, (int) CURSOR_Y));
+                }
+            }
         }
     }
 
@@ -199,15 +261,12 @@ public class WorldLayer extends Layer {
                     velocity.y = moveThroughBlockSpeed;
                 if (in.isKeyPressed(GLFW_KEY_DOWN))
                     velocity.y = -moveThroughBlockSpeed;
-            }
-            else
-            {
+            } else {
                 if (in.isKeyPressed(GLFW_KEY_RIGHT))
                     accel.x = acc;
                 if (in.isKeyPressed(GLFW_KEY_LEFT))
                     accel.x = -acc;
-                if (in.isKeyPressed(GLFW_KEY_UP))
-                {
+                if (in.isKeyPressed(GLFW_KEY_UP)) {
                     if (istsunderBlock || Stats.fly_enable)
                         velocity.y = 1;
                 }

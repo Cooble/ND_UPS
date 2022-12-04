@@ -61,4 +61,6 @@ public:
 
 	BlockID getBlockID(const std::string& block_id) const { return getBlock(block_id).getID(); }
 	int getWallID(const std::string& wall_id) const { return getWall(wall_id).getID(); }
+
+	void readExternalIDList();
 };

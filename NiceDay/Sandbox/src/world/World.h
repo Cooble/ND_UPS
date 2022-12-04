@@ -11,7 +11,8 @@
 class IChunkProvider;
 
 constexpr int DYNAMIC_ID_ENTITY_MANAGER = std::numeric_limits<int>::max() - 0;
-constexpr int DYNAMIC_ID_WORLD_NBT = std::numeric_limits<int>::max() - 1;
+constexpr int DYNAMIC_ID_WORLD_INFO = std::numeric_limits<int>::max() - 1;
+constexpr int DYNAMIC_ID_WORLD_NBT = std::numeric_limits<int>::max() - 2;
 
 const int WORLD_CHUNK_BIT_SIZE = 5;
 const int WORLD_CHUNK_SIZE = 32;
@@ -156,7 +157,10 @@ public:
 	int getChunkSaveOffset(int cx, int cy) const
 	{
 		return cx + cy * m_info.chunk_width;
-	};
+	}
+
+	void genMandel();
+	void genWorld();
 	//==============CHUNK METHODS========================================================================
 
 	//return nullptr if chunk is not loaded or invalid coords 
@@ -165,8 +169,10 @@ public:
 	Chunk* getChunkM(int cx, int cy) override;
 	Chunk* getChunkM(half_int chunkID) { return getChunkM(chunkID.x, chunkID.y); }
 
-	// assign chunk load and gen task and returns
-	void loadChunk(int x, int y);
+	void saveWorld();
+
+	// returns true if success
+	bool loadWorld();
 
 	static void updateChunkBounds(BlockAccess& world, int cx, int cy, int bitBounds);
 
@@ -202,7 +208,6 @@ public:
 
 	//automatically calls chunk.markdirty() to update graphics and call onNeighborBlockChange()
 	void setBlockWithNotify(int x, int y, BlockStruct& block) override;
-
 	// just changes block value of blockstruct (no notification)
 	void setBlock(int x, int y, BlockStruct& block) override;
 

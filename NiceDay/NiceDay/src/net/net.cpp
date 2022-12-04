@@ -109,7 +109,7 @@ namespace nd::net
 		/* Create the UDP socket */
 		if ((s.m_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
 		{
-			ND_ERROR("Cannot create socket");
+			ND_ERROR("Cannot create socket, make sure to call nd::net::init() before creating any socket.");
 			return NetResponseFlags_Error;
 		}
 
@@ -168,8 +168,10 @@ namespace nd::net
 	NetResponseFlags_ send(const Socket& s, const Message& m)
 	{
 		if (sendto(s.m_sock, m.buffer.data(), m.buffer.size(), 0, (sockaddr*)&m.address.src,
-		           sizeof (m.address.src)) == SOCKET_ERROR)
+			sizeof(m.address.src)) == SOCKET_ERROR) {
+			ASSERT(false, "Error during sending to address {}",m.address.toString());
 			return NetResponseFlags_Error;
+		}
 		return NetResponseFlags_Success;
 	}
 }

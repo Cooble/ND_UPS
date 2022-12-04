@@ -22,15 +22,23 @@ void nd_registry::registerEverything()
 
 void nd_registry::registerBlocks()
 {
-	
+	ND_TRACE("Loading block id list");
+	BlockRegistry::get().readExternalIDList();
+
 	//blocks
 	ND_REGISTER_BLOCK(new BlockAir());
-	ND_REGISTER_BLOCK(new BlockGrass());
-	ND_REGISTER_BLOCK(new BlockGlass());
+	ND_REGISTER_BLOCK(new BlockStone());
+	ND_REGISTER_BLOCK(new BlockDirt());
+	ND_REGISTER_BLOCK(new BlockSnow());
+	ND_REGISTER_BLOCK(new BlockSnowBrick());
+	ND_REGISTER_BLOCK(new BlockIce());
+	ND_REGISTER_BLOCK(new BlockGold());
 
 	//walls
 	ND_REGISTER_WALL(new WallAir());
-	ND_REGISTER_WALL(new WallGlass());
+	ND_REGISTER_WALL(new WallStone());
+	ND_REGISTER_WALL(new WallDirt());
+	ND_REGISTER_WALL(new WallSnow());
 	
 }
 

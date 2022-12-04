@@ -48,13 +48,14 @@ public class App {
         // BASIC LAYERS
         layerStack.push(new InitLayer());
 
-        layerStack.push(new ClientLayer());
+        var client = new ClientLayer() ;
+        layerStack.push(client);
 
         // CUSTOM LAYERS
       //  layerStack.push(new TestFBO());
       // layerStack.push(new TestTexture());
        // layerStack.push(new ExampleLayer());
-        layerStack.push(new WorldLayer());
+        layerStack.push(new WorldLayer(client));
        // layerStack.push(new ExampleLayer2());
 
         m_target_tps=60;
@@ -108,7 +109,7 @@ public class App {
         return window;
     }
 
-    private long nowTime(){
+    public static long nowTime(){
         return System.currentTimeMillis();
     }
     

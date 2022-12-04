@@ -19,6 +19,8 @@ public class TextBuilder {
     public static final int ALIGN_CENTER = 2;
 
     public static boolean buildMesh(List<String> lines, Font font, TextMesh mesh, int alignment, Vector4i clipRect, TextMesh.CursorProp cursor) {
+        if(clipRect==null)
+            clipRect = new Vector4i(-100000,-100000,100000,100000);
         TextMesh.clipper clip = new TextMesh.clipper((float) clipRect.x, (float) clipRect.y, (float) clipRect.z, (float) clipRect.w);
 
         float pixelRat = font.getPixelRatio();

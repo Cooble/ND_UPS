@@ -7,8 +7,21 @@ public:
 	WallAir();
 };
 
-class WallGlass : public Wall
+class WallStone : public Wall
 {
 public:
-	WallGlass();
+	WallStone();
 };
+
+class WallDirt : public Wall
+{
+public:
+	WallDirt();
+};
+
+class WallSnow : public Wall
+{
+public:
+	WallSnow();
+};
+

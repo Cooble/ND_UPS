@@ -1,5 +1,9 @@
 ﻿#include "ndpch.h"
 #include "World.h"
+
+#include <block_ids.h>
+#include <complex>
+
 #include "block/Block.h"
 #include "WorldIO.h"
 #include "block/BlockRegistry.h"
@@ -21,13 +25,16 @@ constexpr int CHUNK_BUFFER_LENGTH = 400; //5*4
 
 void World::init()
 {
-	m_chunks.reserve(m_info.chunk_width*m_info.chunk_height);
+	m_chunks.reserve(m_info.chunk_width * m_info.chunk_height);
 
 	for (int i = 0; i < m_info.chunk_width; ++i)
 		for (int j = 0; j < m_info.chunk_height; ++j)
-			m_chunks.emplace(half_int(i, j), new Chunk());
-		
-	
+		{
+			auto c = new Chunk();
+			c->m_x = i;
+			c->m_y = j;
+			m_chunks.emplace(half_int(i, j), c);
+		}
 	ND_INFO("Made world instance");
 }
 
@@ -35,15 +42,15 @@ World::World(std::string file_path, const WorldInfo& info)
 	:
 	m_info(info),
 	m_file_path(file_path),
-	m_nbt_saver(file_path + ".entity")
+	m_nbt_saver(file_path + ".world")
 {
-	m_nbt_saver.initIfExist();
+	m_nbt_saver.init();
 	init();
 }
 
 World::~World()
 {
-	for(auto& c:m_chunks)
+	for (auto& c : m_chunks)
 		delete c.second;
 }
 
@@ -66,6 +73,82 @@ void World::tick()
 
 //====================CHUNKS=========================
 
+static int mandelbrot(float x, float y, int steps)
+{
+	std::complex<float> C(x, y);
+	std::complex<float> Z(0.f, 0.f);
+	for (int i = 0; i < steps; ++i)
+	{
+		Z = Z * Z + C;
+		if (Z.imag() * Z.imag() + Z.real() * Z.real() > 1000000)
+			return i;
+	}
+	return -1;
+}
+
+void World::genMandel()
+{
+	float scale = 1.f / 16;
+	float offsetX = -m_info.chunk_width * WORLD_CHUNK_SIZE * scale / 2.f;
+	float offsetY = -m_info.chunk_height * WORLD_CHUNK_SIZE * scale / 2.f;
+
+	BlockID ste[5] = {BLOCK_STONE, BLOCK_GOLD, BLOCK_SNOW, BLOCK_DIRT, BLOCK_SNOW_BRICK};
+	for (int cx = 0; cx < m_info.chunk_width; ++cx)
+	{
+		for (int cy = 0; cy < m_info.chunk_height; ++cy)
+		{
+			for (int x = 0; x < WORLD_CHUNK_SIZE; ++x)
+			{
+				for (int y = 0; y < WORLD_CHUNK_SIZE; ++y)
+				{
+					auto totalX = x + WORLD_CHUNK_SIZE * cx;
+					auto totalY = y + WORLD_CHUNK_SIZE * cy;
+
+					auto FX = totalX * scale + offsetX;
+					auto FY = totalY * scale + offsetY;
+
+					int steps = mandelbrot(FX, FY, 20);
+					BlockStruct b = {};
+					if (steps == -1)
+					{
+						b.block_id = BLOCK_STONE;
+					}
+					else
+					{
+						if (steps >= sizeof(ste) / sizeof(int))
+							b.block_id = BLOCK_AIR;
+						else
+							b.block_id = ste[steps];
+					}
+					setBlockWithNotify(totalX, totalY, b);
+					setWallWithNotify(totalX, totalY, WALL_AIR);
+				}
+			}
+		}
+	}
+}
+
+void World::genWorld()
+{
+	genMandel();
+	return;
+	BlockID ids[5]{BLOCK_AIR, BLOCK_DIRT, BLOCK_SNOW, BLOCK_SNOW_BRICK, BLOCK_STONE};
+	BlockID walls[4]{WALL_AIR, WALL_DIRT, WALL_SNOW, WALL_STONE};
+	int i = 0;
+	for (auto& chunk : m_chunks)
+	{
+		auto chunkOffsetX = chunk.second->getCX() * WORLD_CHUNK_SIZE;
+		auto chunkOffsetY = chunk.second->getCY() * WORLD_CHUNK_SIZE;
+		for (int x = 0; x < WORLD_CHUNK_SIZE; ++x)
+		{
+			for (int y = 0; y < WORLD_CHUNK_SIZE; ++y)
+			{
+				setBlockWithNotify(x + chunkOffsetX, y + chunkOffsetY, BlockStruct(ids[(i++) % 5]));
+				setWallWithNotify(x + chunkOffsetX, y + chunkOffsetY, walls[i / 5 % 4]);
+			}
+		}
+	}
+}
 
 const Chunk* World::getChunk(int cx, int cy) const
 {
@@ -81,8 +164,46 @@ Chunk* World::getChunkM(int cx, int cy)
 }
 
 
-void World::loadChunk(int x, int y)
+void World::saveWorld()
 {
+	ND_TRACE("Saving world to {}", m_file_path);
+	m_nbt_saver.beginSession();
+	for(auto& c:m_chunks)
+	{
+		m_nbt_saver.setWriteChunkID(c.second->chunkID());
+		m_nbt_saver.write((const char*)c.second, sizeof(Chunk));
+	}
+	m_nbt_saver.setWriteChunkID(DYNAMIC_ID_WORLD_INFO);
+	m_nbt_saver.write(m_info);
+	m_nbt_saver.flushWrite();
+	m_nbt_saver.endSession();
+	ND_TRACE("Saving world finished");
+}
+
+bool World::loadWorld()
+{
+	if (!std::filesystem::exists(m_file_path+".world"))
+		return false;
+	ND_TRACE("Loading world from file {}",m_file_path);
+	m_nbt_saver.beginSession();
+	for (auto& c : m_chunks)
+	{
+		if(!m_nbt_saver.setReadChunkID(c.second->chunkID()))
+		{
+			ND_ERROR("World file corrupted");
+			return false;
+		}
+		m_nbt_saver.read((char*)c.second, sizeof(Chunk));
+
+	}
+	if(!m_nbt_saver.setReadChunkID(DYNAMIC_ID_WORLD_INFO))
+	{
+		ND_ERROR("World file corrupted");
+		return false;
+	}
+	m_nbt_saver.read(m_info);
+	m_nbt_saver.endSession();
+	return true;
 }
 
 constexpr int maskUp = BIT(0);
@@ -164,7 +285,7 @@ const BlockStruct* World::getBlock(int x, int y) const
 	auto chunkPtr = getChunk(x >> WORLD_CHUNK_BIT_SIZE, y >> WORLD_CHUNK_BIT_SIZE);
 	if (chunkPtr)
 		return const_cast<BlockStruct*>(&chunkPtr->block(x & (WORLD_CHUNK_SIZE - 1),
-		                                                       y & (WORLD_CHUNK_SIZE - 1)));
+		                                                 y & (WORLD_CHUNK_SIZE - 1)));
 	return nullptr;
 }
 
@@ -317,7 +438,7 @@ void World::onWallsChange(int xx, int yy, BlockStruct& blok)
 				if (b.isWallFullyOccupied())
 				{
 					//i cannot call this method on some foreign wall pieces
-					
+
 					BlockRegistry::get().getWall(b.wallID()).onNeighbourWallChange(*this, x + xx, y + yy);
 					auto& c = *getChunkM(toChunkCoord(x + xx), toChunkCoord(y + yy));
 					c.markDirty(true); //mesh needs to be updated

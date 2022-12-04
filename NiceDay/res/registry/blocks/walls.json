@@ -1,10 +1,5 @@
 {
   "stone": {},
+  "snow": {},
   "dirt": {},
-  "gold": {},
-
-  "glass": {
-    "isTransparent": true,
-    "corners": "glass"
-  }
 }

@@ -10,7 +10,8 @@ WallAir::WallAir()
 }
 
 
-WallGlass::WallGlass()
-	: Wall("glass") {}
+WallStone::WallStone(): Wall("stone") {}
+WallDirt::WallDirt(): Wall("dirt") {}
+WallSnow::WallSnow(): Wall("snow") {}
 
 

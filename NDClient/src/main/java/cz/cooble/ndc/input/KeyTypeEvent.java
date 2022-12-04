@@ -3,12 +3,13 @@ package cz.cooble.ndc.input;
 public class KeyTypeEvent extends KeyEvent{
     private int keycode;
 
-    public KeyTypeEvent(int mods, int key) {
+    public KeyTypeEvent(int keycode, int mods) {
         super(EventType.KeyPress, mods);
-        this.keycode = key;
+        this.keycode = keycode;
 
     }
     public int getKeycode() {
         return keycode;
     }
+
 }

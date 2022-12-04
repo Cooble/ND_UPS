@@ -5,18 +5,23 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class ProtocolHeader {
+public class ProtocolHeader implements NetSerializable{
+    public static final String BANG = "[_ND_]";
     public Prot action;
 
-    public void serialize(ByteBuffer b) {
-        try {
-            var o = new ByteArrayOutputStream(4);
-            var out = new DataOutputStream(o);
-            out.writeInt(action.ordinal());
-            out.close();
-            b.put(o.toByteArray());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    @Override
+    public void serialize(NetBuffer b) {
+        b.put(BANG);
+        b.put(action.name());
+        b.put(action.ordinal());
+    }
+
+    @Override
+    public void deserialize(NetBuffer b) {
+        String bang = b.getString();
+        if(!BANG.equals(bang))
+            throw new RuntimeException("invalid protocol header without bang");
+        b.getString();//ignore protocol name
+        action = Prot.values()[b.getInt()];
     }
 }

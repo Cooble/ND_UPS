@@ -11,16 +11,33 @@ public:
 	bool onNeighborBlockChange(BlockAccess& world, int x, int y) const override;
 };
 
-class BlockGrass : public Block
+class BlockStone : public Block
 {
 public:
-	BlockGrass();
-	bool onNeighborBlockChange(BlockAccess& world, int x, int y) const override;
+	BlockStone();
 };
-
-class BlockGlass : public Block
+class BlockDirt : public Block
 {
 public:
-	BlockGlass();
-	bool onNeighborBlockChange(BlockAccess& world, int x, int y) const override;
+	BlockDirt();
+};
+class BlockSnow : public Block
+{
+public:
+	BlockSnow();
+};
+class BlockIce : public Block
+{
+public:
+	BlockIce();
+};
+class BlockGold : public Block
+{
+public:
+	BlockGold();
+};
+class BlockSnowBrick : public Block
+{
+public:
+	BlockSnowBrick();
 };

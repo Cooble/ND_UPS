@@ -10,7 +10,7 @@ import static cz.cooble.ndc.Asserter.*;
 import static cz.cooble.ndc.core.Utils.half_int;
 
 public class Font {
-    static class Charac {
+    public static class Charac {
         int id;
         float u, v;
         float u1, v1;
@@ -43,6 +43,9 @@ public class Font {
     Map<Integer, Integer> kerning=new HashMap<>();
 
 
+    public int getLineHeight() {
+        return lineHeight;
+    }
 
     int getKerning(int firstIndex, int secondIndex) {
         Integer out = kerning.get(half_int(firstIndex, secondIndex));
@@ -63,7 +66,7 @@ public class Font {
         return out;
     }
 
-    int getTextWidth(String text) {
+    public int getTextWidth(String text) {
         String textt = Font.removeColorEntities(text);
         int out = 0;
         int lastC = 0;
@@ -93,7 +96,7 @@ public class Font {
         );
     }
 
-    static String colorize(String borderColor, String color) {
+    public static String colorize(String borderColor, String color) {
         return BORDER_PREFIX + borderColor + color;
     }
 

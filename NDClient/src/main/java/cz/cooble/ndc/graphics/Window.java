@@ -3,6 +3,7 @@ package cz.cooble.ndc.graphics;
 import cz.cooble.ndc.input.*;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
+import org.lwjgl.glfw.GLFWCharCallbackI;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 

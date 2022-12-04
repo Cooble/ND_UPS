@@ -8,7 +8,7 @@ public class Net {
 
 
     public static ByteBuffer byteBufferAllocate(int size) {
-        return ByteBuffer.allocate(size).order(ByteOrder.BIG_ENDIAN);
+        return ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN);
     }
 
     public static class Address {

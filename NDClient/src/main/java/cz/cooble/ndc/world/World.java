@@ -54,8 +54,6 @@ public class World {
     public static class WorldInfo {
         public int chunk_width=10, chunk_height=10;
         public String name="worldName";
-        public int player_id;
-        public int playerChunk;
     }
 
     private HashMap<Integer, Chunk> m_chunks = new HashMap<>();
@@ -112,6 +110,9 @@ public class World {
         Chunk c = new Chunk(cx,cy);
         m_chunks.put(half_int(cx,cy),c);
         WorldGen.gen(this,c);
+    }
+    public void setChunk(Chunk c){
+        m_chunks.put(c.chunkID(),c);
     }
 
     public final int maskUp = BIT(0);

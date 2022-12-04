@@ -31,7 +31,14 @@ public class Chunk {
         this.m_y = y;
     }
 
+    @Override
+    public String toString() {
+        return "Chunk["+m_x+", "+m_y+"]";
+    }
+
     public long last_save_time;
+
+    private boolean isGenerated;
 
     public int getCX() {return m_x;}
 
@@ -46,7 +53,12 @@ public class Chunk {
 
     public boolean isDirty() {return (m_flags & CHUNK_DIRTY_FLAG) != 0;}
 
-    public boolean isGenerated() {return last_save_time != 0;} //worldgen has generated it
+
+    public boolean isGenerated() {return isGenerated;}
+
+    public void setGenerated(boolean generated) {
+        isGenerated = generated;
+    }
 
     public void lock(boolean lock) {
         if (lock) m_flags |= CHUNK_LOCKED_FLAG;
@@ -72,9 +84,11 @@ public class Chunk {
         return half_int(wx >> WORLD_CHUNK_BIT_SIZE, wy >> WORLD_CHUNK_BIT_SIZE);
     }
     static final int ChunkPieceSize = 1040;//52 blocks
+    static final int ChunkPieceBlockCount = 52;
+
 
     public void deserialize(ByteBuffer d,int piece) {
-        for (int i = ChunkPieceSize*piece; i < ChunkPieceSize*(piece+1) && i<m_blocks.length; i++) {
+        for (int i = ChunkPieceBlockCount*piece; i < ChunkPieceBlockCount*(piece+1) && i<m_blocks.length; i++) {
             var b = m_blocks[i];
            // must be little endian
             b.block_metadata = d.getInt();
@@ -87,6 +101,7 @@ public class Chunk {
             b.block_corner = d.get();
             d.get();//last padding byte
         }
+        int i = 0;
     }
 
     public void serialize(ByteBuffer d) {

@@ -7,25 +7,10 @@
 0   air
 1   stone
 2   dirt
-3   gold
-4   adamantite
-5   platform
-6   grass
-7   glass
-8   torch
-9   door_close
-10  door_open
-11  painting
-12  tree
-13  tree_sapling
-14  flower
-15  grass_plant
-16  snow
-17  snow_brick
-18  ice
-19  pumpkin
-20  chest
-21  radio
+3   snow
+4   ice
+5   gold
+6   snow_brick
 
 
 

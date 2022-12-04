@@ -5,8 +5,7 @@
 # example: "17 stone_ore"
 
 0   air
-1   dirt
-2   stone
-3   glass
-4   gold
+1   stone
+2   dirt
+3   snow
 

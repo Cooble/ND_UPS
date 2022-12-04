@@ -52,11 +52,12 @@ namespace nd::net
 
 		void reserve(size_t size)
 		{
-			buff.resize(size);
+			if(buff.size()<size)
+				buff.resize(size);
 			siz = 0;
 		}
 
-		void setSize(int size)
+		void setSize(size_t size)
 		{
 			ASSERT(size <= capacity(), "invalid size");
 			siz = size;
@@ -65,7 +66,7 @@ namespace nd::net
 		auto data() { return buff.data(); }
 		auto data() const { return buff.data(); }
 		int size() const { return siz; }
-		int capacity() const { return (int)buff.capacity(); }
+		int capacity() const { return (int)buff.size(); }
 	};
 
 	struct BufferWriter

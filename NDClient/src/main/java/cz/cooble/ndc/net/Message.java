@@ -7,11 +7,11 @@ import static cz.cooble.ndc.net.Net.byteBufferAllocate;
 
 public class Message {
     public InetSocketAddress address;
-    public ByteBuffer buffer;
+    public NetBuffer buffer;
 
     public Message() {}
 
     public Message(int size) {
-        buffer = byteBufferAllocate(size);
+        buffer = new NetBuffer(size);
     }
 }

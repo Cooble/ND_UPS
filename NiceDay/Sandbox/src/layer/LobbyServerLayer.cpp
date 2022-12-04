@@ -10,6 +10,7 @@
 
 #include "net/net.h"
 #include "net/net_iterator.h"
+#include "world/nd_registry.h"
 #include "world/block/Block.h"
 
 using namespace nd::net;
@@ -47,6 +48,9 @@ LobbyServerLayer::PlayerInfo::PlayerInfo()
 
 void LobbyServerLayer::onAttach()
 {
+	nd::ResourceMan::init();
+	nd_registry::registerEverything();
+
 	nd::net::init();
 	auto info = nd::net::CreateSocketInfo();
 	info.async = true;
@@ -87,6 +91,7 @@ void LobbyServerLayer::onEvent(nd::Event& e)
 
 void LobbyServerLayer::onUpdate()
 {
+	m_cluster.update();
 	pingClusters();
 	checkTimeout();
 
@@ -179,7 +184,7 @@ void LobbyServerLayer::createBasicServers()
 	m_server_book[OVERWORLD] = i1;*/
 
 	m_cluster.startServer(new ServerLayer(OVERWORLD, WORLD_SERVER_0_PORT, m_address));
-	m_cluster.startServer(new ServerLayer(NETHER, WORLD_SERVER_1_PORT, m_address));
+	//m_cluster.startServer(new ServerLayer(NETHER, WORLD_SERVER_1_PORT, m_address));
 }
 
 // redirect request to world server
@@ -193,12 +198,16 @@ void LobbyServerLayer::onInvReq(nd::net::Message& m)
 	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
 	playerInfo.address = m.address; // save sender address
 
-	ServerInfo& server = m_server_book[playerInfo.serverName];
+	if(!m_server_book.contains(playerInfo.serverName))
+	{
+		ND_INFO("Cannot respond to inv request: No servers running, not even gateway");
+		return;
+	}
 
+	ServerInfo& server = m_server_book[playerInfo.serverName];
 	// server is dead lets try gateway instead
 	if (!server.isAlive())
 		playerInfo.serverName = GATE_WAY;
-
 
 	NetWriter(m.buffer).put(playerHeader);
 	m.address = server.address;
@@ -218,16 +227,17 @@ void LobbyServerLayer::onInvitation(nd::net::Message& m)
 	auto adr = m.address.toString();
 	playerHeader.server = m.address.toString();
 
+	NetWriter(m.buffer).put(playerHeader);
 	m.address = playerInfo.address;
 	nd::net::send(m_socket, m);
 }
 
 void LobbyServerLayer::onClusterPong(nd::net::Message& m)
 {
-	ProtocolHeader p;
+	ProtocolHeader h;
 
 	auto reader = NetReader(m.buffer);
-	reader.get(p);
+	reader.get(h);
 
 	auto serverName = reader.readStringUntilNull(32);
 

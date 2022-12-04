@@ -1,10 +1,11 @@
 #pragma once
 #include "net/net_iterator.h"
 #include "core/SUtil.h"
+#include "world/block/Block.h"
 #include "world/entity/EntityManager.h"
 
 
-enum class Prot:int
+enum class Prot :int
 {
 	// Errors
 	ERR_InvalidREQ,
@@ -45,27 +46,54 @@ enum class Prot:int
 	//session, entity_updates[entity_id, type, physics_data] + key_press_history, block updates[x,y,block_data, time?,who]
 	PlayerUpdate,
 	//session, key_press_history
+	Command,
+};
+
+inline const char* ProtStrings[128] = {
+
+	"ERR_InvalidREQ	",
+	"InvitationREQ	",
+	"Invitation		",
+	"InvitationACK	",
+	"SessionCreated	",
+	"MigrateREQ		",
+	"MigrateWait	",
+	"MigratedACK	",
+	"Ping			",
+	"Pong			",
+	"ClusterPing	",
+	"ClusterPong	",
+	"ChunkREQ		",
+	"ChunkACK		",
+	"WorldUpdate	",
+	"PlayerProtocol ",
+	"Command		"
 };
 
 
 constexpr const char* BANG = "[_ND_]";
 
-struct ProtocolHeader : Serializable<ProtocolHeader>
+struct ProtocolHeader : nd::net::Serializable
 {
 	Prot action;
 
-	bool deserialize(NetReader& reader)
+	bool deserialize(nd::net::NetReader& reader)
 	{
-		auto bang = reader.readStringUntilNull(strlen(BANG));
+		std::string bang;
+		reader.get(bang, strlen(BANG));
 		if (bang != BANG)
 			return false;
+
+		//ignore protocol name
+		auto s = reader.readStringUntilNull(30);
 
 		return reader.get(*(int*)&action);
 	}
 
-	void serialize(NetWriter& reader) const
+	void serialize(nd::net::NetWriter& reader) const
 	{
 		reader.put(BANG);
+		reader.put(std::string(ProtStrings[(int)action]));
 		reader.put((int)action);
 	}
 };
@@ -74,7 +102,7 @@ struct SessionProtocol : ProtocolHeader
 {
 	int session_id;
 
-	bool deserialize(NetReader& reader)
+	bool deserialize(nd::net::NetReader& reader)
 	{
 		if (!ProtocolHeader::deserialize(reader))
 			return false;
@@ -82,7 +110,7 @@ struct SessionProtocol : ProtocolHeader
 		return reader.get(session_id);
 	}
 
-	void serialize(NetWriter& writer)
+	void serialize(nd::net::NetWriter& writer) const
 	{
 		ProtocolHeader::serialize(writer);
 		writer.put(session_id);
@@ -95,7 +123,7 @@ struct EstablishConnectionProtocol : SessionProtocol
 {
 	std::string player, server;
 
-	bool deserialize(NetReader& reader)
+	bool deserialize(nd::net::NetReader& reader)
 	{
 		if (!SessionProtocol::deserialize(reader))
 			return false;
@@ -104,7 +132,7 @@ struct EstablishConnectionProtocol : SessionProtocol
 		return true;
 	}
 
-	void serialize(NetWriter& writer)
+	void serialize(nd::net::NetWriter& writer) const
 	{
 		SessionProtocol::serialize(writer);
 		writer.put(player);
@@ -114,16 +142,18 @@ struct EstablishConnectionProtocol : SessionProtocol
 
 
 constexpr int CHUNK_PIECE_SIZE = 1040; //52 blocks
-constexpr int LAST_CHUNK_PIECE_IDX = 19; //52 blocks
-constexpr int LAST_CHUNK_PIECE_SIZE = 32 * 32 * 20 - 19 * CHUNK_PIECE_SIZE; //total bytes - 19 pieces
+constexpr int CHUNK_PIECE_COUNT = 20; //52 blocks
+constexpr int LAST_CHUNK_PIECE_IDX = CHUNK_PIECE_COUNT - 1; //52 blocks
+constexpr int LAST_CHUNK_PIECE_SIZE = 32 * 32 * 20 - (CHUNK_PIECE_COUNT - 1) * CHUNK_PIECE_SIZE;
+//total bytes - 19 pieces
 
 
 struct ChunkProtocol : SessionProtocol
 {
 	int c_x, c_y;
-	char piece = -1;
+	int piece = -1;
 
-	bool deserialize(NetReader& reader)
+	bool deserialize(nd::net::NetReader& reader)
 	{
 		if (!SessionProtocol::deserialize(reader))
 			return false;
@@ -134,20 +164,19 @@ struct ChunkProtocol : SessionProtocol
 		return true;
 	}
 
-	void serialize(NetWriter& writer)
+	void serialize(nd::net::NetWriter& writer) const
 	{
 		SessionProtocol::serialize(writer);
 		writer.put(c_x);
 		writer.put(c_y);
-		if (piece != -1)
-			writer.put(piece);
+		writer.put(piece);
 	}
 };
 
 //session, entity_updates[entity_id, type, physics_data] + key_press_history, block updates[x,y,block_data, time?,who]
 struct WorldUpdate : SessionProtocol
 {
-	struct EntityUpdate : Serializable<EntityUpdate>
+	struct EntityUpdate : Serializable
 	{
 		struct PhysicsData
 		{
@@ -158,7 +187,7 @@ struct WorldUpdate : SessionProtocol
 		EntityType type;
 		PhysicsData physics;
 
-		bool deserialize(NetReader& reader)
+		bool deserialize(nd::net::NetReader& reader)
 		{
 			return
 				reader.get(id) &&
@@ -168,7 +197,7 @@ struct WorldUpdate : SessionProtocol
 				reader.get(physics.acceleration);
 		}
 
-		void serialize(NetWriter& reader) const
+		void serialize(nd::net::NetWriter& reader) const
 		{
 			reader.put(id);
 			reader.put(type);
@@ -180,7 +209,7 @@ struct WorldUpdate : SessionProtocol
 
 	std::vector<EntityUpdate> entity_updates;
 
-	bool deserialize(NetReader& reader)
+	bool deserialize(nd::net::NetReader& reader)
 	{
 		if (!SessionProtocol::deserialize(reader))
 			return false;
@@ -188,59 +217,72 @@ struct WorldUpdate : SessionProtocol
 		return true;
 	}
 
-	void serialize(NetWriter& writer)
+	void serialize(nd::net::NetWriter& writer) const
 	{
 		SessionProtocol::serialize(writer);
 		writer.put(entity_updates);
 	}
 };
 
-struct PlayerUpdate : SessionProtocol
+struct PlayerProtocol : SessionProtocol
 {
-	struct EntityUpdate : Serializable<EntityUpdate>
+	struct BlockModify : Serializable
 	{
-		struct PhysicsData
-		{
-			glm::vec2 pos, velocity, acceleration;
-		};
+		BlockID block_id;
+		bool blockOrWall;
+		glm::ivec2 pos;
 
-		EntityID id;
-		EntityType type;
-		PhysicsData physics;
-
-		bool deserialize(NetReader& reader)
+		bool deserialize(nd::net::NetReader& reader)
 		{
 			return
-				reader.get(id) &&
-				reader.get(type) &&
-				reader.get(physics.pos) &&
-				reader.get(physics.velocity) &&
-				reader.get(physics.acceleration);
+				reader.get(block_id) &&
+				reader.get(*(int*)&blockOrWall) &&
+				reader.get(pos);
 		}
 
-		void serialize(NetWriter& reader) const
+		void serialize(nd::net::NetWriter& writer) const
 		{
-			reader.put(id);
-			reader.put(type);
-			reader.put(physics.pos);
-			reader.put(physics.velocity);
-			reader.put(physics.acceleration);
+			writer.put(block_id);
+			writer.put(*(const int*)&blockOrWall);
+			writer.put(pos);
 		}
 	};
 
-	std::vector<EntityUpdate> entity_updates;
+	std::vector<BlockModify> block_modifies;
 
-	bool deserialize(NetReader& reader)
+	bool deserialize(nd::net::NetReader& reader)
 	{
 		if (!SessionProtocol::deserialize(reader))
 			return false;
-		reader.get(entity_updates);
+
+		reader.get(block_modifies);
 		return true;
 	}
 
-	void serialize(NetWriter& writer)
+	void serialize(nd::net::NetWriter& writer) const
 	{
 		SessionProtocol::serialize(writer);
-		writer.put(entity_updates);
+		writer.put(block_modifies);
+	}
+};
+
+struct CommandProtocol : SessionProtocol
+{
+	std::string message;
+	CommandProtocol() { action = Prot::Command; }
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!SessionProtocol::deserialize(reader))
+			return false;
+
+		reader.get(message);
+		return true;
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		SessionProtocol::serialize(writer);
+		writer.put(message);
 	}
 };

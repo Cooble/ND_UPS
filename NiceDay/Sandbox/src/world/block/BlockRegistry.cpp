@@ -55,3 +55,37 @@ BlockRegistry::~BlockRegistry()
 	for (auto b : m_walls)
 		delete b;
 }
+
+void BlockRegistry::readExternalIDList()
+{
+	{
+		auto t = std::ifstream(ND_RESLOC("res/registry/blocks/blocks.ids"));
+		std::string line;
+		while (std::getline(t, line))
+		{
+			std::istringstream iss(line);
+			if (line.find(' ') == std::string::npos)
+				continue;
+			int index;
+			std::string name;
+			if (!(iss >> index >> name)) { continue; } // error
+			m_blockIDs[name] = index;
+		}
+	}
+	{
+		auto t = std::ifstream(ND_RESLOC("res/registry/blocks/walls.ids"));
+		std::string line;
+		while (std::getline(t, line))
+		{
+			std::istringstream iss(line);
+			if (line.find(' ') == std::string::npos)
+				continue;
+			int index;
+			std::string name;
+			if (!(iss >> index >> name)) { continue; } // error
+			m_wallIDs[name] = index;
+		}
+	}
+	m_blocks.resize(m_blockIDs.size());
+	m_walls.resize(m_wallIDs.size());
+}

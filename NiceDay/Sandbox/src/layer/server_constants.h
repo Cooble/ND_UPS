@@ -6,7 +6,7 @@ namespace server_const
 
 
 	// in ticks interval between sending i am alive to lobby from server
-	constexpr int CRY_FOR_ATTENTION_INTERVAL = 2;
+	constexpr int CRY_FOR_ATTENTION_INTERVAL = 10;
 
 	//how long player info will be held on lobby
 	constexpr size_t PLAYER_LOBBY_TIMEOUT = 5000;
@@ -20,5 +20,5 @@ namespace server_const
 	constexpr int LOBBY_PORT = 1234;
 
 	// player kicked if no response
-	constexpr size_t PLAYER_SERVER_TIMEOUT=2000;
+	constexpr size_t PLAYER_SERVER_TIMEOUT=10005000;
 }

@@ -53,7 +53,7 @@ public class Socket {
             // Register write with the selector
             //key.interestOps(SelectionKey.OP_WRITE);
             clntRec.buffer.flip();
-            m.buffer = clntRec.buffer;
+            m.buffer = new NetBuffer(clntRec.buffer);
             m.address = (InetSocketAddress) clntRec.clientAddress;
             return NetResponseFlags.Success;
         }
@@ -90,7 +90,7 @@ public class Socket {
         return NetResponseFlags.Error;
     }
     public NetResponseFlags send(Message m) {
-        return send(m.address, m.buffer);
+        return send(m.address, m.buffer.getInnerBuffer());
     }
 
     public NetResponseFlags send(InetSocketAddress a, ByteBuffer b) {

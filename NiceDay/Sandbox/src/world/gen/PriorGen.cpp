@@ -138,7 +138,7 @@ void PriorGen::genLayer0()
 			}
 			else if (y == terrain)
 			{
-				block.block_id = BLOCK_GRASS;
+				block.block_id = BLOCK_STONE;
 				//block.block_id = BLOCK_SNOW;
 				block.setWall(WALL_AIR);
 			}
@@ -203,7 +203,7 @@ void PriorGen::genLayer1Grass()
 		auto& grass = getBlock(x, m_height_map[x]);
 		if(m_height_map[x]>=m_height)
 			continue;
-		if(grass.block_id==BLOCK_GRASS)
+		if(grass.block_id==BLOCK_STONE)
 		//if(grass.block_id==BLOCK_SNOW)
 		{
 			auto& upGrass = getBlock(x, m_height_map[x]+1);
@@ -212,7 +212,7 @@ void PriorGen::genLayer1Grass()
 				switch (std::rand() % 8)
 				{
 				case 0:
-					upGrass.block_id = BLOCK_FLOWER;
+					upGrass.block_id = BLOCK_STONE;
 					upGrass.block_metadata = std::rand() % 8;
 					break;
 				case 1:
@@ -220,7 +220,7 @@ void PriorGen::genLayer1Grass()
 				case 3:
 				case 4:
 				case 5:
-					upGrass.block_id = BLOCK_GRASS_PLANT;
+					upGrass.block_id = BLOCK_STONE;
 					upGrass.block_metadata = std::rand() % 4;
 					break;
 				case 7:
@@ -288,19 +288,6 @@ inline static PriorGen::Pix blockToColor(const BlockStruct& b)
 		return {255, 255, 255};
 	case BLOCK_STONE:
 		return {50, 50, 50};
-	case BLOCK_ADAMANTITE:
-		return {125, 0, 125};
-	case BLOCK_GOLD:
-		return {0, 255, 0};
-	case BLOCK_TREE:
-		return {50, 255, 50};
-	case BLOCK_DIRT:
-		return {125, 125, 0};
-	case BLOCK_GRASS:
-		return {0, 255, 0};
-	case BLOCK_GRASS_PLANT:
-	case BLOCK_FLOWER:
-		return { 0, 255, 100 };
 	}
 	return {0, 0, 0};
 }

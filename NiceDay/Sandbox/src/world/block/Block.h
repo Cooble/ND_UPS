@@ -60,22 +60,21 @@ typedef int BlockID;
 
 struct BlockStruct
 {
-	short block_id;
 	int block_metadata;
-	char block_corner;
-
 	short wall_id[4];
 	char wall_corner[4];
+	short block_id;
+	char block_corner;
 
 	BlockStruct() :
-		block_corner(BLOCK_STATE_FULL),
-		wall_id{0, 0, 0, 0} {}
+		wall_id{0, 0, 0, 0},
+		block_corner(BLOCK_STATE_FULL) {}
 
 	BlockStruct(int block_id) :
-		block_id(block_id),
 		block_metadata(0),
-		block_corner(BLOCK_STATE_FULL),
-		wall_id{0, 0, 0, 0} {}
+		wall_id{0, 0, 0, 0},
+		block_id(block_id),
+		block_corner(BLOCK_STATE_FULL) {}
 
 	int wallID() const { return wall_id[0]; }
 	bool isAir() const { return block_id == 0; }

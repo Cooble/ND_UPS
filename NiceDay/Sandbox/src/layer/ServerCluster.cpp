@@ -2,28 +2,37 @@
 
 #include "ServerLayer.h"
 
+ServerCluster::ServerInstance::~ServerInstance()
+{
+	thread.join();
+}
+
 void ServerCluster::serverLoop(std::shared_ptr<ServerInstance> server)
 {
-	server->server->onAttach();
-
-
 	size_t millisPerTick = 1000 / TPS;
 
-	while (!server->closePending)
+	do
 	{
-		auto time = nd::nowTime();
-		server->server->onUpdate();
-		auto updateTime = nd::nowTime() - time;
+		server->server->onAttach();
+		while (!server->closePending && !server->server->shouldExit() && !server->server->shouldRestart())
+		{
+			auto time = nd::nowTime();
+			server->server->onUpdate();
+			auto updateTime = nd::nowTime() - time;
 
-		//take a break for the rest of a tick
-		auto sleepFor = millisPerTick - updateTime;
-		if (millisPerTick > updateTime)
-			std::this_thread::sleep_for(std::chrono::milliseconds(sleepFor));
+			//take a break for the rest of a tick
+			auto sleepFor = millisPerTick - updateTime;
+			if (millisPerTick > updateTime)
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleepFor));
+		}
+		server->server->onDetach();
 	}
-	server->server->onDetach();
+	while (server->server->shouldRestart());
 
+	m_to_remove.push_back(server);
 	m_servers.erase(m_servers.find(SID(server->server->getName())));
 	delete server->server;
+	server->server = nullptr;
 }
 
 void ServerCluster::startServer(ServerLayer* server)
@@ -33,6 +42,13 @@ void ServerCluster::startServer(ServerLayer* server)
 
 	instance->server = server;
 	instance->thread = std::thread([this, instance] { serverLoop(instance); });
+}
+
+void ServerCluster::update()
+{
+	while (!m_to_remove.empty())
+		if (!m_to_remove[0]->server)
+			m_to_remove.erase(m_to_remove.begin());
 }
 
 void ServerCluster::stopServer(ServerLayer* server)

@@ -1,5 +1,7 @@
 package cz.cooble.ndc.net;
 
+import cz.cooble.ndc.test.NetWriter;
+
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -16,6 +18,9 @@ public class Net {
             String[] split = s.split(":");
            return new InetSocketAddress(split[0], Integer.parseInt(split[1]));
         }
+        public static InetSocketAddress build(String s,int port) {
+            return new InetSocketAddress(s, port);
+        }
     }
 
 
@@ -28,14 +33,14 @@ public class Net {
     public static void onReceive(Socket s, Message m) {
         System.out.println("Icoming from " + m.address);
         var a = new EstablishConnectionHeader();
-        a.deserialize(m.buffer);
+        a.deserialize(new NetReader(m.buffer));
         if (a.action == Prot.Invitation) {
             a.action = Prot.InvitationACK;
             m.buffer.clear();
             m.address = Address.build(a.server_name);
             a.server_name = "";
 
-            a.serialize(m.buffer);
+            a.serialize(new NetWriter(m.buffer));
             s.send(m);
 
         } else if (a.action == Prot.SessionCreated) {

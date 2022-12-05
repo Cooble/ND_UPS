@@ -86,8 +86,7 @@ void TCPTunnel::receiveAckPacket(Message& m)
 		if (!packet.isAbsent())
 			packet.acknowledge();
 	}
-	Pac c;
-	while ((c = m_out_window[0]).isAck)
+	while (m_out_window[0].isAck)
 	{
 		m_buff_out.seekg(m_out_window[0].nextMemoryIdx());
 		m_out_window.erase(m_out_window.begin());
@@ -103,7 +102,7 @@ void TCPTunnel::receiveTunnelUDP(Message& m)
 	SegmentPacket h;
 	if (NetReader(m.buffer).get(h))
 	{
-		if (h.clientId != m_id)
+		if (h.channelId != m_channel_id)
 			return;
 		receiveFatPacket(m);
 		m_address = m.address;
@@ -112,7 +111,7 @@ void TCPTunnel::receiveTunnelUDP(Message& m)
 	AckPacket p;
 	if (NetReader(m.buffer).get(p))
 	{
-		if (p.clientId != m_id)
+		if (p.clientId != m_channel_id)
 			return;
 		receiveAckPacket(m);
 		m_address = m.address;
@@ -132,6 +131,10 @@ void TCPTunnel::flushTunnelUDP(Message& m)
 
 		// we dont care about data just the offset of writer pointer
 		SegmentPacket fat;
+		fat.packetId = m_current_write.packetId;
+		fat.memoryIdx = m_current_write.memoryIdx;
+		fat.channelId = m_channel_id;
+
 		writer.put(fat);
 
 		// get size, we actually ignore memory copying
@@ -171,7 +174,7 @@ void TCPTunnel::flushTimeouts(Message& m)
 		SegmentPacket fat;
 		fat.packetId = packet.packetId;
 		fat.memoryIdx = packet.memoryIdx;
-		fat.clientId = m_id;
+		fat.channelId = m_channel_id;
 
 		auto writer = NetWriter(m.buffer);
 		writer.put(fat);
@@ -205,7 +208,8 @@ bool TCPTunnel::write(const Message& m)
 	if (freeSpace < m.buffer.size() + sizeof(size))
 		return false;
 
-	size = htonll(m.buffer.size());
+	//size = htonll(m.buffer.size());
+	size = m.buffer.size(); // lets stick with little endian
 
 	m_buff_out.write((const char*)&size, sizeof(size));
 	m_buff_out.write(m.buffer.data(), m.buffer.size());
@@ -221,7 +225,8 @@ bool TCPTunnel::read(Message& m)
 
 	// read the size without moving cursor
 	m_buff_in.read((char*)&size, m_buff_in.tellg(), sizeof(size));
-	size = ntohll(size);
+
+	//size = ntohll(size);// lets stick with little endian
 
 	// whole message is not sent yet
 	if (m_buff_in.available() < sizeof(size) + size)

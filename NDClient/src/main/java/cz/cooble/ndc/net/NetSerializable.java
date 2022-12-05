@@ -1,7 +1,9 @@
 package cz.cooble.ndc.net;
 
+import cz.cooble.ndc.test.NetWriter;
+
 public interface NetSerializable {
 
-    void serialize(NetBuffer b);
-    void deserialize(NetBuffer b);
+    void serialize(NetWriter w);
+    void deserialize(NetReader b);
 }

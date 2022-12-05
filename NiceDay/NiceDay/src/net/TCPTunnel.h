@@ -14,7 +14,7 @@ constexpr int TCP_PACKET_ACK_ACTION = -2;
 struct SegmentPacket : Serializable
 {
 	int action;
-	ClientID clientId;
+	ClientID channelId;
 	size_t packetId;
 	size_t memoryIdx;
 
@@ -31,7 +31,7 @@ struct SegmentPacket : Serializable
 		if (e != "TCP")
 			return false;
 		return
-			reader.get(clientId) &&
+			reader.get(channelId) &&
 			reader.get(packetId) &&
 			reader.get(memoryIdx);
 	}
@@ -41,7 +41,7 @@ struct SegmentPacket : Serializable
 		writer.put(TCP_PACKET_FAT_ID);
 		static std::string bang = "TCP";
 		writer.put(bang);
-		writer.put(clientId);
+		writer.put(channelId);
 		writer.put(packetId);
 		writer.put(memoryIdx);
 	}
@@ -113,7 +113,7 @@ public:
 	static constexpr size_t MAX_UDP_PACKET_LENGTH = 1000; //dont forget to include sizeof(FatPacket)
 
 	Socket& m_socket;
-	ClientID m_id;
+	ClientID m_channel_id;
 	NetRingBuffer m_buff_in, m_buff_out;
 	std::vector<Pac> m_in_window;
 	std::vector<Pac> m_out_window;
@@ -121,17 +121,16 @@ public:
 	Pac m_current_write;
 	AckPacket m_current_ack;
 	Address m_address;
-	Buffer m_out_message_buf;
 public:
 	TCPTunnel(Socket& socket, Address a, ClientID id, size_t buffSize) :
 		m_socket(socket),
-		m_id(id),
+		m_channel_id(id),
 		m_buff_in(buffSize),
 		m_buff_out(buffSize),
 		m_address(a)
 
 	{
-		m_current_ack.clientId = m_id;
+		m_current_ack.clientId = m_channel_id;
 		m_current_write = {0, 0, 0};
 
 		for (size_t i = 0; i < PACKETS_IN_WINDOW; ++i)
@@ -147,7 +146,7 @@ public:
 	{
 		SegmentPacket h;
 		if (NetReader(m.buffer).get(h))
-			return h.clientId;
+			return h.channelId;
 
 		AckPacket p;
 		if (NetReader(m.buffer).get(p))

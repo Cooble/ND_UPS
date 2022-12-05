@@ -5,6 +5,7 @@ import cz.cooble.ndc.net.*;
 import cz.cooble.ndc.core.Layer;
 import cz.cooble.ndc.input.Event;
 import cz.cooble.ndc.input.KeyPressEvent;
+import cz.cooble.ndc.test.NetWriter;
 
 import java.net.InetSocketAddress;
 import java.util.*;
@@ -66,7 +67,7 @@ public class ClientLayer extends Layer {
 
         Message m = new Message(1024);
         m.address = lobbyAddress;
-        a.serialize(m.buffer);
+        a.serialize(new NetWriter(m.buffer));
         socket.send(m);
 
         t.start(TM_INV_REQ);
@@ -75,7 +76,6 @@ public class ClientLayer extends Layer {
     private void sendChunkReq(Message m, int cid, int piece) {
         System.out.println("Sending chunk request for " + Utils.getX(cid) + ", " + Utils.getY(cid) + " piece=" + piece);
 
-        m.buffer.clear();
 
         var a = new ChunkProtocol();
         a.action = Prot.ChunkREQ;
@@ -83,7 +83,7 @@ public class ClientLayer extends Layer {
         a.c_x = Utils.getX(cid);
         a.c_y = Utils.getY(cid);
         a.piece = piece;
-        a.serialize(m.buffer);
+        a.serialize(new NetWriter(m.buffer));
 
         m.address = serverAddress;
         socket.send(m);
@@ -93,13 +93,11 @@ public class ClientLayer extends Layer {
     private void sendInvitationACK(Message m) {
         System.out.println("Sending invitation ACK");
 
-        m.buffer.clear();
-
         var a = new EstablishConnectionHeader();
         a.action = Prot.InvitationACK;
         a.player_name = playerName;
         a.session_id = session_id;
-        a.serialize(m.buffer);
+        a.serialize(new NetWriter(m.buffer));
 
         m.address = serverAddress;
         socket.send(m);
@@ -110,13 +108,12 @@ public class ClientLayer extends Layer {
     private void sendBlockModifies(Message m) {
         System.out.println("Sending Player Update");
 
-        m.buffer.clear();
 
         var a = new PlayerProtocol();
         a.action = Prot.PlayerUpdate;
         a.session_id = session_id;
         a.blockModifyEvents = blockModifyEvents;
-        a.serialize(m.buffer);
+        a.serialize(new NetWriter(m.buffer));
 
         m.address = serverAddress;
         socket.send(m);
@@ -124,7 +121,6 @@ public class ClientLayer extends Layer {
     }
 
     private void sendMessages(Message m) {
-        m.buffer.clear();
 
         while (!outCommingCommands.isEmpty()) {
             var a = new CommandProtocol();
@@ -132,7 +128,7 @@ public class ClientLayer extends Layer {
             a.session_id = session_id;
             a.message = outCommingCommands.get(0);
             outCommingCommands.remove(0);
-            a.serialize(m.buffer);
+            a.serialize(new NetWriter(m.buffer));
             m.address = serverAddress;
             socket.send(m);
         }
@@ -141,7 +137,7 @@ public class ClientLayer extends Layer {
     //=======EVENT=RESPONSE=========================
     private void onChunkACK(Message m) {
         var a = new ChunkProtocol();
-        a.deserialize(m.buffer);
+        a.deserialize(new NetReader(m.buffer));
 
         // new chunk
         if (chunkBuffer == null) {
@@ -150,7 +146,7 @@ public class ClientLayer extends Layer {
                 pendingPieces.add(i);
 
             chunkBuffer = new Chunk(a.c_x, a.c_y);
-            chunkBuffer.deserialize(m.buffer.getInnerBuffer(), a.piece);
+            chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
             pendingPieces.remove(a.piece);
 
             //reset timeout for asking explicitly for another piece
@@ -158,7 +154,7 @@ public class ClientLayer extends Layer {
         }
         // chunk already exists, new piece
         else if (chunkBuffer.chunkID() == half_int(a.c_x, a.c_y)) {
-            chunkBuffer.deserialize(m.buffer.getInnerBuffer(), a.piece);
+            chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
             System.out.println("Piece " + a.piece + " deserialized");
             pendingPieces.remove(a.piece);
 
@@ -175,7 +171,7 @@ public class ClientLayer extends Layer {
 
     private void onInvitation(Message m) {
         var a = new EstablishConnectionHeader();
-        a.deserialize(m.buffer);
+        a.deserialize(new NetReader(m.buffer));
         session_id = a.session_id;
         serverAddress = Net.Address.build(a.server_name);
         sendInvitationACK(m);
@@ -184,7 +180,7 @@ public class ClientLayer extends Layer {
 
     private void onSessionCreated(Message m) {
         var a = new EstablishConnectionHeader();
-        a.deserialize(m.buffer);
+        a.deserialize(new NetReader(m.buffer));
         isSessionCreated = true;
         System.out.println("Session id successfully obtained: " + a.session_id);
         t.stop(TM_INVITATION_ACK);
@@ -192,7 +188,7 @@ public class ClientLayer extends Layer {
 
     private void onCommandReceived(Message m){
         var a = new CommandProtocol();
-        a.deserialize(m.buffer);
+        a.deserialize(new NetReader(m.buffer));
         incommingCommands.add(a.message);
         System.out.println("Received Message from server: "+a.message);
     }
@@ -200,9 +196,8 @@ public class ClientLayer extends Layer {
     private void onPacketReceived(Message m) {
         System.out.println("Incoming datagram from " + m.address);
         var a = new ProtocolHeader();
-        a.deserialize(m.buffer);
+        a.deserialize(new NetReader(m.buffer));
 
-        m.buffer.getInnerBuffer().position(0);
         if (a.action == Prot.Invitation) {
             onInvitation(m);
         } else if (a.action == Prot.SessionCreated) {

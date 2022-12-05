@@ -1,7 +1,9 @@
 package cz.cooble.ndc.world;
 
 import cz.cooble.ndc.net.NetBuffer;
+import cz.cooble.ndc.net.NetReader;
 import cz.cooble.ndc.net.NetSerializable;
+import cz.cooble.ndc.test.NetWriter;
 
 public class BlockModifyEvent implements NetSerializable {
 
@@ -19,7 +21,7 @@ public class BlockModifyEvent implements NetSerializable {
 
 
     @Override
-    public void serialize(NetBuffer b) {
+    public void serialize(NetWriter b) {
         b.put(block_id);
         b.put(blockOrWall?1:0);
         b.put(x);
@@ -27,7 +29,7 @@ public class BlockModifyEvent implements NetSerializable {
     }
 
     @Override
-    public void deserialize(NetBuffer b) {
+    public void deserialize(NetReader b) {
         block_id = b.getInt();
         blockOrWall = b.getInt()==1;
         x = b.getInt();

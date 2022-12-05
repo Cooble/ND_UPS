@@ -18,7 +18,7 @@ public class Socket {
 
     static class ClientRecord {
         public SocketAddress clientAddress;
-        public ByteBuffer buffer = byteBufferAllocate(2048);
+        public NetBuffer buffer = new NetBuffer(2048);
     }
 
 
@@ -27,7 +27,7 @@ public class Socket {
             selector = Selector.open();
             address = new InetSocketAddress("0.0.0.0", port);
             channel = DatagramChannel.open();
-            channel.socket().bind(new InetSocketAddress(0));
+            channel.socket().bind(new InetSocketAddress(port));
             channel.configureBlocking(false);
             channel.register(selector, SelectionKey.OP_READ, new ClientRecord());
         } catch (Exception e) {
@@ -47,19 +47,17 @@ public class Socket {
     private NetResponseFlags receiveByKey(SelectionKey key, Message m) throws IOException {
         DatagramChannel channel = (DatagramChannel) key.channel();
         ClientRecord clntRec = (ClientRecord) key.attachment();
-        clntRec.buffer.clear();    // Prepare buffer for receiving
-        clntRec.clientAddress = channel.receive(clntRec.buffer);
+        m.buffer.clear();
+        clntRec.clientAddress = channel.receive(m.buffer.getInner());
         if (clntRec.clientAddress != null) {  // Did we receive something?
             // Register write with the selector
             //key.interestOps(SelectionKey.OP_WRITE);
-            clntRec.buffer.flip();
-            m.buffer = new NetBuffer(clntRec.buffer);
+            m.buffer.setSize(m.buffer.getInner().position());
             m.address = (InetSocketAddress) clntRec.clientAddress;
             return NetResponseFlags.Success;
         }
         return NetResponseFlags.Error;
     }
-
     public NetResponseFlags receive(Message m) {
         try {
             if (selector.selectNow() == 0)
@@ -89,19 +87,18 @@ public class Socket {
         }
         return NetResponseFlags.Error;
     }
-    public NetResponseFlags send(Message m) {
-        return send(m.address, m.buffer.getInnerBuffer());
-    }
 
-    public NetResponseFlags send(InetSocketAddress a, ByteBuffer b) {
+    public NetResponseFlags send(Message m) {
+        return send(m.address, m.buffer);
+    }
+    public NetResponseFlags send(InetSocketAddress a, NetBuffer b) {
         try {
             b.flip();
-            channel.send(b, a);
+            channel.send(b.getInner(), a);
         } catch (IOException e) {
             e.printStackTrace();
             return NetResponseFlags.Error;
         }
         return NetResponseFlags.Success;
     }
-
 }

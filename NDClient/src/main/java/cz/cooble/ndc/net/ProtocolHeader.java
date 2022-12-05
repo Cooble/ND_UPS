@@ -1,5 +1,7 @@
 package cz.cooble.ndc.net;
 
+import cz.cooble.ndc.test.NetWriter;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -10,14 +12,14 @@ public class ProtocolHeader implements NetSerializable{
     public Prot action;
 
     @Override
-    public void serialize(NetBuffer b) {
+    public void serialize(NetWriter b) {
         b.put(BANG);
         b.put(action.name());
         b.put(action.ordinal());
     }
 
     @Override
-    public void deserialize(NetBuffer b) {
+    public void deserialize(NetReader b) {
         String bang = b.getString();
         if(!BANG.equals(bang))
             throw new RuntimeException("invalid protocol header without bang");

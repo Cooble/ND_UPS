@@ -4,36 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="bc6d6840-cd7e-44e0-9a71-c3d0337ecda5" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../NiceDay/NiceDay/src/memory/RingBuffer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/NiceDay/src/memory/RingBuffer.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/NiceDay/src/net/net.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/NiceDay/src/net/net.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/NiceDay/src/net/net.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/NiceDay/src/net/net.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/NiceDay/src/net/net_iterator.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/NiceDay/src/net/net_iterator.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/LobbyServerLayer.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/LobbyServerLayer.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/LobbyServerLayer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/LobbyServerLayer.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/Prot.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/Prot.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerCluster.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerCluster.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerCluster.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerCluster.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/server_constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/server_constants.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/World.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/World.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/World.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/World.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/Block.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/Block.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/BlockRegistry.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/BlockRegistry.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/BlockRegistry.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/BlockRegistry.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_blocks.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_blocks.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_blocks.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_blocks.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_walls.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_walls.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_walls.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/block/basic_walls.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/gen/PriorGen.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/gen/PriorGen.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/nd_registry.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/world/nd_registry.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/blocks.ids" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/blocks.ids" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/blocks.json" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/blocks.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/connect_groups.json" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/connect_groups.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/walls.ids" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/walls.ids" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/walls.json" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/res/registry/blocks/walls.json" afterDir="false" />
-    </list>
+    <list default="true" id="bc6d6840-cd7e-44e0-9a71-c3d0337ecda5" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -78,6 +49,7 @@
 }</component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
+      <recent name="cz.cooble.ndc.net" />
       <recent name="cz.cooble.ndc.world" />
       <recent name="cz.cooble.ndc.graphics" />
       <recent name="cz.cooble.ndc" />
@@ -100,13 +72,26 @@
       <command value="App" />
     </option>
   </component>
-  <component name="RunManager" selected="Application.App">
+  <component name="RunManager" selected="Application.TestTCPTunnel">
     <configuration name="App" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="cz.cooble.ndc.core.App" />
       <module name="NDClient" />
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="cz.cooble.ndc.test.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="TestTCPTunnel" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="cz.cooble.ndc.TestTCPTunnel" />
+      <module name="NDClient" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="cz.cooble.ndc.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -129,6 +114,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.TestTCPTunnel" />
         <item itemvalue="Application.App" />
         <item itemvalue="Application.cz.cooble.ndc.Main" />
       </list>
@@ -163,6 +149,7 @@
       <workItem from="1669454031964" duration="42158000" />
       <workItem from="1669576574436" duration="594000" />
       <workItem from="1670166519842" duration="103000" />
+      <workItem from="1670218793077" duration="22876000" />
     </task>
     <servers />
   </component>
@@ -189,6 +176,13 @@
           <option name="timeStamp" value="41" />
         </line-breakpoint>
       </breakpoints>
+      <default-breakpoints>
+        <breakpoint enabled="true" type="java-exception">
+          <properties>
+            <option name="NOTIFY_CAUGHT" value="false" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
     </breakpoint-manager>
     <watches-manager>
       <configuration name="Application">

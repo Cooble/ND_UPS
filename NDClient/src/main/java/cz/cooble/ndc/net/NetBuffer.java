@@ -23,7 +23,13 @@ public class NetBuffer {
     public int dataOffset(){return buffer.arrayOffset();}
 
     public ByteBuffer slice(int offset, int len) {
-        return buffer.slice(offset, len);
+        var lastPos = buffer.position();
+        buffer.position(offset);
+        var lastLimit = buffer.limit();
+        var out = buffer.slice();
+        buffer.position(lastPos);
+        buffer.limit(lastLimit);
+        return out;
     }
 
     public void reserve(int size) {

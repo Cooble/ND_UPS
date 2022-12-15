@@ -263,7 +263,7 @@ public class TCPTunnel {
         m.buffer.setSize((int) size);
 
         // read the sweet data
-        m_buff_in.read(m.buffer.getInner().slice(0, (int) size));
+        m_buff_in.read(m.buffer.slice(0, (int) size));
         m.address = m_address;
         return true;
     }

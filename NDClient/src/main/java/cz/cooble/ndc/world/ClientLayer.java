@@ -1,5 +1,6 @@
 package cz.cooble.ndc.world;
 
+import cz.cooble.ndc.core.App;
 import cz.cooble.ndc.core.Utils;
 import cz.cooble.ndc.net.*;
 import cz.cooble.ndc.core.Layer;
@@ -151,7 +152,6 @@ public class ClientLayer extends Layer {
 
         t.start(TM_INVITATION_ACK);
     }
-
     private void sendMove(Message m) {
         m.address = serverAddress;
         for (var e : playerMoveEvents) {

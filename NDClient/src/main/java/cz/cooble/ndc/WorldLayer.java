@@ -13,7 +13,6 @@ import cz.cooble.ndc.world.block.BlockID;
 import cz.cooble.ndc.world.block.BlockRegistry;
 import cz.cooble.ndc.world.player.Player;
 import org.joml.Matrix4f;
-import org.joml.Random;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
@@ -51,14 +50,12 @@ public class WorldLayer extends Layer {
 
     @Override
     public void onAttach() {
-
         Effect.init();
         RegistryLoader.load();
         ChunkMesh.init();
 
         cam.setPosition(new Vector2f(0, 0));
 
-        Random r = new Random();
         guiLayer.openConnectScreen(this::onIpEntered);
 
         world = new World();
@@ -67,8 +64,6 @@ public class WorldLayer extends Layer {
 
 
         worldRenderManager = new WorldRenderManager(cam, world);
-
-        player = new Player();
 
         renderer = new BatchRenderer2D();
 
@@ -110,6 +105,9 @@ public class WorldLayer extends Layer {
         renderer.push(worldRenderManager.getProjMatrix());
         renderer.push(worldMatrix);
 
+        for (var p : world.getPlayers().entrySet())
+            p.getValue().render(renderer);
+
         /*for (auto it = m_world.beginEntities(); it != m_world.endEntities(); ++it)
         {
             WorldEntity* entity = m_world.getLoadedEntity(*it);
@@ -134,6 +132,8 @@ public class WorldLayer extends Layer {
         console.render(renderer);
         renderer.pop(2);
         renderer.flush();
+
+
     }
 
     private boolean isLoading;
@@ -148,6 +148,7 @@ public class WorldLayer extends Layer {
                 connectTimeout.stop();
                 client.closeSession();
                 isLoading = false;
+                onAttach(); //reattach world
             }
             if (client.isSessionCreated()) {
                 guiLayer.openInfoScreen("Downloading map...", null);
@@ -163,6 +164,7 @@ public class WorldLayer extends Layer {
                 && !client.hasPendingChunks()
                 && guiLayer.isEnabled()) {
             guiLayer.setEnabled(false);
+            player = world.getPlayerOrNew(client.getPlayerName());
             isLoading = false;
         }
     }
@@ -198,9 +200,11 @@ public class WorldLayer extends Layer {
 
         console.update();
 
+        // apply inputs to players
+        updatePlayers();
+        // move players
+        world.onUpdate();
 
-        updatePlayer();
-        player.update(world);
         cam.setPosition(player.getPosition());
     }
 
@@ -222,21 +226,34 @@ public class WorldLayer extends Layer {
 
                 if (nextPos.distanceSquared(move.targetPos) > THRESHOLD * THRESHOLD) {
 
-                    System.out.println("Distance too large, gotta rewind for "+move.event_id);
+                    System.out.println("Distance too large, gotta rewind for " + move.event_id);
                     // oh no, server calculated different position from us,
                     // we need to rewind!
 
                     // change our historic position and rewind back to present
                     player.getPosition().set(move.targetPos);
+                    player.getVelocity().set(move.targetVelocity);
 
                     for (var historicEvent : playerHistory) {
                         //apply speed and position
                         historicEvent.pos.set(player.getPosition());
-                        applyPlayerMove(historicEvent);
+                        applyPlayerMove(player, historicEvent);
                         // move in the world
                         player.update(world);
                     }
                 }
+            }
+            else {
+                // foreign player
+                var pl = world.getPlayerOrNew(move.name);
+
+                // we are receiving new input, but we have not applied all previous ones-> set default starting position
+                if (pl.getHistory() != null && !pl.getHistory().inputs.isEmpty()) {
+                    pl.getPosition().set(pl.getHistory().targetPos);
+                    pl.getVelocity().set(pl.getHistory().targetVelocity);
+
+                }
+                pl.setHistory(move);
             }
         }
     }
@@ -303,7 +320,7 @@ public class WorldLayer extends Layer {
         }
     }
 
-    public void applyPlayerMove(PlayerMoves e) {
+    public void applyPlayerMove(Player player, PlayerMoves e) {
         //camera movement===================================================================
         Vector2f accel = new Vector2f(0, 0);
         accel.y = Player.GRAVITY;
@@ -315,37 +332,38 @@ public class WorldLayer extends Layer {
         float acc = 0.3f;
         float moveThroughBlockSpeed = 6;
 
-        var istsunderBlock = !world.isAir((int) cam.getPosition().x, (int) (cam.getPosition().y - 1));
+        var istsunderBlock = !world.isAir((int) player.getPosition().x, (int) (player.getPosition().y - 1));
 
-        if (App.get().getWindow().isFocused()) {
-            if (Stats.move_through_blocks_enable) {
-                velocity.x = 0;
-                velocity.y = 0;
+        //if (App.get().getWindow().isFocused()) {
+        if (Stats.move_through_blocks_enable) {
+            velocity.x = 0;
+            velocity.y = 0;
 
-                if (e.inputs.right)
-                    velocity.x = moveThroughBlockSpeed;
-                if (e.inputs.left)
-                    velocity.x = -moveThroughBlockSpeed;
-                if (e.inputs.up)
-                    velocity.y = moveThroughBlockSpeed;
-                if (e.inputs.down)
-                    velocity.y = -moveThroughBlockSpeed;
-            } else {
-                if (e.inputs.right)
-                    accel.x = acc;
-                if (e.inputs.left)
-                    accel.x = -acc;
-                if (e.inputs.up) {
-                    if (istsunderBlock)
-                        velocity.y = 1;
-                }
-                player.setAcceleration(accel);
+            if (e.inputs.right)
+                velocity.x = moveThroughBlockSpeed;
+            if (e.inputs.left)
+                velocity.x = -moveThroughBlockSpeed;
+            if (e.inputs.up)
+                velocity.y = moveThroughBlockSpeed;
+            if (e.inputs.down)
+                velocity.y = -moveThroughBlockSpeed;
+        } else {
+            if (e.inputs.right)
+                accel.x = acc;
+            if (e.inputs.left)
+                accel.x = -acc;
+            if (e.inputs.up) {
+                if (istsunderBlock)
+                    velocity.y = 1;
             }
+            player.setAcceleration(accel);
         }
+        // }
 
         //even if it is empty we gotta send it otherwise the warui server will cut the line due to timeout
         // zankokuna unmeidayone
-        if (e.event_id == 0) {
+
+        if (client.getPlayerName().equals(player.getName()) && e.event_id == 0) {
             e.event_id = playerHistoryIdx++;
             playerHistory.add(e);
             client.addPendingPlayerMove(e);
@@ -407,6 +425,7 @@ public class WorldLayer extends Layer {
             if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_ESCAPE) {
                 client.closeSession();
                 guiLayer.openInfoScreen("Disconnected from server", () -> guiLayer.openConnectScreen(this::onIpEntered));
+                onAttach(); //reattach
             }
         }
         if (e instanceof MousePressEvent) {
@@ -461,16 +480,38 @@ public class WorldLayer extends Layer {
         }
     }
 
-    private void updatePlayer() {
+    private void updatePlayers() {
         var in = App.get().getInput();
 
+        // handle our player
         PlayerMoves e = new PlayerMoves();
         e.inputs.right = in.isKeyPressed(GLFW_KEY_RIGHT);
         e.inputs.left = in.isKeyPressed(GLFW_KEY_LEFT);
         e.inputs.up = in.isKeyPressed(GLFW_KEY_UP);
         e.inputs.down = in.isKeyPressed(GLFW_KEY_DOWN);
         e.pos.set(player.getPosition());
-        applyPlayerMove(e);
+        applyPlayerMove(player, e);
+
+        // handle other players
+        for (var p : world.getPlayers().entrySet()) {
+            var pl = p.getValue();
+            if (pl.getHistory() == null || pl.getName().equals(player.getName()))
+                continue;
+
+            if (!pl.getHistory().inputs.isEmpty()) {
+                var i = pl.getHistory().inputs.remove(0);
+                PlayerMoves m = new PlayerMoves();
+                m.inputs = i;
+                m.pos.set(pl.getPosition());
+                applyPlayerMove(pl, m);
+
+                // It was last input -> apply server pos and velocity, no matter the input from before
+                if (pl.getHistory().inputs.isEmpty()) {
+                    pl.getPosition().set(pl.getHistory().targetPos);
+                    pl.getVelocity().set(pl.getHistory().targetVelocity);
+                }
+            }
+        }
     }
     //todo download map does not timeout
 }

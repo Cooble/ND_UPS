@@ -9,7 +9,11 @@ import cz.cooble.ndc.world.wall.WallStone;
 public class RegistryLoader {
 
 
+    private static boolean alreadyLoaded = false;
     public static void load(){
+        if(alreadyLoaded)
+            return;
+        alreadyLoaded=true;
         BlockRegistry.registerBlock(new BlockAir());
         BlockRegistry.registerBlock(new BlockStone());
         BlockRegistry.registerBlock(new BlockDirt());

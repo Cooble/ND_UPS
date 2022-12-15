@@ -3,13 +3,9 @@ package cz.cooble.ndc.world;
 import cz.cooble.ndc.core.NBT;
 import cz.cooble.ndc.world.block.Block;
 import cz.cooble.ndc.world.block.BlockRegistry;
-import org.joml.Vector4f;
-import org.lwjgl.opengl.NVRobustnessVideoMemoryPurge;
+import cz.cooble.ndc.world.player.Player;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static cz.cooble.ndc.Asserter.ND_WARN;
 import static cz.cooble.ndc.core.Utils.BIT;
@@ -31,13 +27,27 @@ public class World {
     }
 
     private boolean m_has_chunk_changed;
+
     public boolean hasChunkChanged() {
         var out = m_has_chunk_changed;
         m_has_chunk_changed = false;
         return out;
     }
 
-    public HashMap<Integer,Chunk> getChunks() {
+    private Map<String, Player> m_players = new HashMap<>();
+
+
+    public Player getPlayerOrNew(String name) {
+        if (!m_players.containsKey(name))
+            m_players.put(name, new Player(name));
+        return m_players.get(name);
+    }
+
+    public void removePlayer(String name) {
+        m_players.remove(name);
+    }
+
+    public HashMap<Integer, Chunk> getChunks() {
         return m_chunks;
     }
 
@@ -51,9 +61,13 @@ public class World {
         return b == null || b.isAir();
     }
 
+    public Map<String, Player> getPlayers() {
+        return m_players;
+    }
+
     public static class WorldInfo {
-        public int chunk_width=10, chunk_height=10;
-        public String name="worldName";
+        public int chunk_width = 10, chunk_height = 10;
+        public String name = "worldName";
     }
 
     private HashMap<Integer, Chunk> m_chunks = new HashMap<>();
@@ -63,38 +77,10 @@ public class World {
     private WorldInfo m_info = new WorldInfo();
 
     public void onUpdate() {
-        tick();
+        for (var p : m_players.entrySet())
+            p.getValue().update(this);
     }
 
-    public void tick() {
-      /*  nd::temp_vector<EntityID> entityArrayBuff(m_entity_array.size());
-        memcpy(entityArrayBuff.data(), m_entity_array.data(), m_entity_array.size() * sizeof(EntityID));
-
-        for (var id : entityArrayBuff)
-        {
-            WorldEntity* entity = m_entity_manager.entity(id);
-            if (entity)
-            {
-                entity.update(*this);
-                if (entity.isMarkedDead())
-                    killEntity(entity.getID());
-            }
-        }
-
-        m_tile_entity_array_buff = std::unordered_map<int64_t, EntityID>(m_tile_entity_map); //lets just copy
-
-        for (var& pair : m_tile_entity_array_buff)
-        {
-            WorldEntity* entity = m_entity_manager.entity(pair.second);
-            if (entity)
-            {
-                entity.update(*this);
-                if (entity.isMarkedDead())
-                    killEntity(entity.getID());
-            }
-        }
-        m_particle_manager.update();*/
-    }
 
 //====================CHUNKS=========================
 
@@ -107,12 +93,13 @@ public class World {
     }
 
     public void loadChunk(int cx, int cy) {
-        Chunk c = new Chunk(cx,cy);
-        m_chunks.put(half_int(cx,cy),c);
-        WorldGen.gen(this,c);
+        Chunk c = new Chunk(cx, cy);
+        m_chunks.put(half_int(cx, cy), c);
+        WorldGen.gen(this, c);
     }
-    public void setChunk(Chunk c){
-        m_chunks.put(c.chunkID(),c);
+
+    public void setChunk(Chunk c) {
+        m_chunks.put(c.chunkID(), c);
     }
 
     public final int maskUp = BIT(0);
@@ -133,7 +120,7 @@ public class World {
     }
 
     public BlockStruct getBlock(float x, float y) {
-       return getBlock((int)x,(int)y);
+        return getBlock((int) x, (int) y);
     }
 
     private void setInnerBlock(int x, int y, BlockStruct b) {
@@ -172,7 +159,7 @@ public class World {
         regNew.onNeighborBlockChange(this, x, y);
         onBlocksChange(x, y, 0);
 
-        getChunk(Chunk.getChunkIDFromWorldPos(x,y)).markDirty(true);
+        getChunk(Chunk.getChunkIDFromWorldPos(x, y)).markDirty(true);
     }
 
     public void setBlock(int x, int y, BlockStruct newBlock) {
@@ -227,9 +214,9 @@ public class World {
         if (!blok.isWallFullyOccupied() && wall_id == 0) //cannot erase other blocks parts on this shared block
             return;
         blok.setWall(wall_id);
-        onWallsChange(x, y,blok);
+        onWallsChange(x, y, blok);
 
-        getChunk(getChunkIDFromWorldPos(x,y)).markDirty(true);
+        getChunk(getChunkIDFromWorldPos(x, y)).markDirty(true);
     }
 
     public boolean isBlockValid(int x, int y) {

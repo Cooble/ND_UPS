@@ -342,8 +342,10 @@ struct PlayerMoved:nd::net::Serializable
 	std::vector<Inputs> inputs;
 	// final position that the player got to
 	glm::vec2 targetPos;
+	// final velocity that the player got to
+	glm::vec2 targetVelocity;
 	// latest event move id from client
-	int event_id;
+	int event_id=0;
 
 	bool deserialize(nd::net::NetReader& reader)
 	{
@@ -351,6 +353,7 @@ struct PlayerMoved:nd::net::Serializable
 			reader.get(name) &&
 			reader.get(inputs) &&
 			reader.get(targetPos) &&
+			reader.get(targetVelocity) &&
 			reader.get(event_id);
 	
 	}
@@ -360,6 +363,7 @@ struct PlayerMoved:nd::net::Serializable
 		writer.put(name);
 		writer.put(inputs);
 		writer.put(targetPos);
+		writer.put(targetVelocity);
 		writer.put(event_id);
 	}
 };

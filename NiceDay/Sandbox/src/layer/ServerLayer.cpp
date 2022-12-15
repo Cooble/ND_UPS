@@ -7,6 +7,7 @@
 #include "world/World.h"
 #include "world/entity/EntityPlayer.h"
 #include "glm/gtx/string_cast.hpp"
+#include "world/block/BlockRegistry.h"
 
 
 using namespace nd::net;
@@ -91,6 +92,8 @@ void ServerLayer::onAttach()
 
 void ServerLayer::onDetach()
 {
+	ND_INFO("Closing server: {}", m_name);
+
 	closeSocket();
 	m_world->saveWorld();
 	delete m_world;
@@ -104,28 +107,6 @@ bool ServerLayer::isValidSession(SessionID id)
 // ================ON UPDATE========================
 void ServerLayer::onUpdate()
 {
-	m_log.reserve(5000);
-	m_tick++;
-	m_log += "\n|=";
-	m_log += std::to_string(m_tick);
-	m_log += "=|\n";
-
-
-	/*for (auto& info : m_player_book)
-	{
-		if (!info.second.isValid)
-			continue;
-		auto player = m_world->getPlayer(info.first);
-		if (player)
-		{
-			m_log += "Prepos:";
-			m_log += glm::to_string(player->getPosition());
-			m_log += "|Inputs|";
-			for (auto& in : info.second.moves.inputs)
-				m_log += in.toString() + ",";
-			m_log += "|";
-		}
-	}*/
 	updateDeathCounter();
 
 	if (!m_is_online)
@@ -144,29 +125,17 @@ void ServerLayer::onUpdate()
 	// send chunks to clients that requested it
 	updateSendChunks();
 
-	//move players
-	applyMoves();
-
-	/*for (auto& info : m_player_book)
-	{
-		if (!info.second.isValid)
-			continue;
-		auto player = m_world->getPlayer(info.first);
-		if (player)
-		{
-			m_log += "Afterpos:";
-			m_log += glm::to_string(player->getPosition());
-		}
-	}*/
-
 	//send moves back to players
-	sendMoves(m);
+	if (--m_update_interval == 0)
+	{
+		m_update_interval = UPDATE_INTERVAL;
 
-	//if(m_log.size()>4500)
-	//{
-	//	ND_INFO("DUMP:\n{}", m_log);
+		//move players
+		applyMoves();
+		sendMoves(m);
+	}
+
 	m_log.clear();
-	//}
 }
 
 void ServerLayer::updateUDP(nd::net::Message& m)
@@ -530,6 +499,7 @@ void ServerLayer::onQuit(nd::net::Message& m)
 	disconnectClient(m, h.session_id, "", false);
 }
 
+
 void ServerLayer::onBlockModify(nd::net::Message& m, SessionID session)
 {
 	BlockModify h;
@@ -538,28 +508,33 @@ void ServerLayer::onBlockModify(nd::net::Message& m, SessionID session)
 		ND_WARN("BlockModify: Could not parse");
 		return;
 	}
-	auto player = m_world->getPlayer(session);
-	bool cont = ndPhys::contains(player->getCollisionBox(),
-	                             glm::vec2(h.x - player->getPosition().x, h.y - player->getPosition().y));
+	bool gut = true;
 
 	if (h.blockOrWall)
 	{
-		if (!cont)
+		BlockStruct b{h.block_id};
+		BlockStruct before = *m_world->getBlock(h.x, h.y);
+
+		int oldCollisionCount = playerCollisionCount();
+		m_world->setBlockWithNotify(h.x, h.y, b);
+
+		// after placing block, check if no player collision exist, if exist lets place previous block
+		if (oldCollisionCount < playerCollisionCount())
 		{
-			BlockStruct b{h.block_id};
-			m_world->setBlockWithNotify(h.x, h.y, b);
+			m_world->setBlockWithNotify(h.x, h.y, before);
+			gut = false;
 		}
 	}
+
 	else
 	{
-		if (!cont)
-			m_world->setWallWithNotify(h.x, h.y, h.block_id);
+		m_world->setWallWithNotify(h.x, h.y, h.block_id);
 	}
 
 	// Send positive feedback that block was successfully changed
 	BlockAck ack;
 	ack.event_id = h.event_id;
-	ack.gut = !cont;
+	ack.gut = gut;
 	NetWriter(m.buffer).put(ack);
 	m_tunnels.find(session)->second.write(m);
 
@@ -589,27 +564,24 @@ void ServerLayer::onMove(nd::net::Message& m)
 	auto& info = m_player_book[h.session_id];
 	info.updateLife();
 
-	auto& moves = info.moves;
+
+	auto& moves = info.curMoves().inputs.size() < UPDATE_INTERVAL ? info.curMoves() : info.nextMoves();
+
+	if (moves.inputs.size() == UPDATE_INTERVAL)
+	{
+		ND_WARN("Input buffer full, throwing move packet away");
+		return;
+	}
 	if (moves.event_id >= h.event_id)
 	{
 		ND_WARN("onMove: Got input from before {} and current event_id is {}", h.event_id, moves.event_id);
 		return; //i really dont care about input from before
 	}
+
 	moves.event_id = h.event_id;
 	moves.targetPos = h.pos;
-	m_log += "|Received:";
-	m_log += "E:" + std::to_string(h.event_id);
-	m_log += "P:" + glm::to_string(moves.targetPos);
-	m_log += "I" + h.inputs.toString();
-	m_log += "|";
-
-
-	std::string s;
-	for (auto& q : moves.inputs)
-		s += q.toString() + ",";
 
 	moves.inputs.push_back(h.inputs);
-	//ND_TRACE("onMove: Adding input {} into inputs ({})", h.inputs.toString(), s);
 }
 
 
@@ -735,27 +707,21 @@ void ServerLayer::applyMoves()
 		if (!player)
 			continue;
 
-		if (info.moves.inputs.empty())
-			continue;
+		auto& curMoves = info.curMoves();
 
-		std::string s;
-		for (auto& q : info.moves.inputs)
-			s += q.toString() + ",";
+		//get last input to copy to fill the empty ticks with
+		Inputs lastIn = !curMoves.inputs.empty() ? curMoves.inputs[0] : Inputs();
 
-		//todo figure out this madness
-		//todo add comments to rewind as well, check who on earth is causing these rewinds every tick
-		//todo have a niceday , pun intended
+		// fill empty ticks
+		while (curMoves.inputs.size() != UPDATE_INTERVAL)
+			curMoves.inputs.push_back(lastIn);
 
-		//ND_TRACE("applying input {} from set ({}) to player with pos {}",
-		//         info.moves.inputs[info.moves.inputs.size() - 1].toString(), s, player->getPosition());
-		for (int i = 0; i < info.moves.inputs.size(); ++i)
+		// apply ticks
+		for (int i = 0; i < UPDATE_INTERVAL; ++i)
 		{
-			applyMove(*player, info.moves.inputs[i]);
+			applyMove(*player, curMoves.inputs[i]);
 			player->update(*m_world);
-			m_log += "!" + glm::to_string(player->getPosition());
 		}
-		m_log += "!";
-		//ND_TRACE("After apply player has pos {}", player->getPosition());
 	}
 }
 
@@ -811,23 +777,17 @@ void ServerLayer::sendMoves(Message& m)
 	{
 		if (!info.isValid)
 			continue;
-		info.moves.name = info.name;
+		auto& curMoves = info.curMoves();
+		curMoves.name = info.name;
 		// get updated final position of player that updated after applying last Input
-		info.moves.targetPos = m_world->getPlayer(session)->getPosition();
+		curMoves.targetPos = m_world->getPlayer(session)->getPosition();
+		curMoves.targetVelocity = m_world->getPlayer(session)->getVelocity();
+		moved.moves.push_back(curMoves);
 
-		m_log += "Sending:";
-		m_log += "|E:";
-		m_log += std::to_string(info.moves.event_id);
-		m_log += "|";
-		for (auto& q : info.moves.inputs)
-			m_log += q.toString() + ",";
-
-		// if not a single input was received by server in time, add one empty 
-		if (info.moves.inputs.empty())
-			info.moves.inputs.push_back({});
-
-		moved.moves.push_back(info.moves);
-		info.moves.inputs.clear();
+		// clear current input
+		curMoves.inputs.clear();
+		// flip buffers from future input to current input
+		info.flipMoves();
 	}
 
 
@@ -839,4 +799,17 @@ void ServerLayer::sendMoves(Message& m)
 		m.address = info.address;
 		send(m_socket, m);
 	}
+}
+
+int ServerLayer::playerCollisionCount()
+{
+	int out = 0;
+	for (auto& [session, info] : m_player_book)
+	{
+		if (!info.isValid)
+			continue;
+		auto p = m_world->getPlayer(session);
+		out += PhysEntity::findBlockIntersections(*m_world, p->getPosition(), p->getCollisionBox());
+	}
+	return out;
 }

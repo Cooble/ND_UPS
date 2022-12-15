@@ -26,7 +26,7 @@ public class GuiTextBox extends GuiElement {
     }
 
     public void setText(String s) {
-        line=s;
+        line = s;
 
     }
 
@@ -89,17 +89,20 @@ public class GuiTextBox extends GuiElement {
             if (((KeyPressEvent) e).isRelease())
                 return;
             switch (((KeyPressEvent) e).getKeycode()) {
-                case GLFW_KEY_BACKSPACE -> {
+                case GLFW_KEY_BACKSPACE: {
                     if (!line.isEmpty())
                         line = line.substring(0, line.length() - 1);
                 }
-                case GLFW_KEY_ENTER -> {
+                break;
+                case GLFW_KEY_ENTER: {
                     enter();
                 }
-                case GLFW_KEY_ESCAPE -> {
+                break;
+                case GLFW_KEY_ESCAPE: {
                     editMode = false;
                     line = "";
                 }
+                break;
             }
         }
 
@@ -143,7 +146,7 @@ public class GuiTextBox extends GuiElement {
         var offset = fontMaterial.font.getLineHeight() * 0.05f;
         TextBuilder.buildMesh(out, fontMaterial.font, textMesh, TextBuilder.ALIGN_LEFT, null, null);
 
-        renderer2D.push(new Matrix4f().translate(pos.x + offset*4, pos.y + offset*4, 0));
+        renderer2D.push(new Matrix4f().translate(pos.x + offset * 4, pos.y + offset * 4, 0));
         renderer2D.submitText(textMesh, fontMaterial);
         renderer2D.pop();
         renderer2D.submitColorQuad(new Vector3f(pos.x, pos.y, 0), new Vector2f(dim.x, dim.y), new Vector4f(0, 0, 0, 0.5f));

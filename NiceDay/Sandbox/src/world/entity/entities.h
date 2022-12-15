@@ -41,6 +41,8 @@ public:
 	void save(nd::NBT& src) override;
 	void load(nd::NBT& src) override;
 
+	static bool findBlockIntersections(World& w, const glm::vec2& entityPos, const nd::Phys::Polygon& entityBound);
+
 public:
 	glm::vec2& getAcceleration() { return m_acceleration; }
 	glm::vec2& getVelocity() { return m_velocity; }

@@ -19,6 +19,9 @@ constexpr std::string_view MES_SERVER_KICK_TIMEOUT = "You were disconnected beca
 constexpr std::string_view MES_CLIENT_DISCONNECT = "CLIENT_DISCONNECT";
 
 constexpr int DEATH_COUNTER_TICKS = 60;
+// number of ticks before PlayersMoved packet is sent to all clients
+constexpr int UPDATE_INTERVAL = 4;
+
 class ServerLayer : public nd::Layer
 {
 public:
@@ -32,7 +35,14 @@ public:
 		bool isValid = false;
 		std::string name;
 
-		PlayerMoved moves;
+		PlayerMoved moves0;
+		PlayerMoved moves1;
+		bool moves_flip = false;
+
+		auto& curMoves() { return moves_flip ? moves1 : moves0; }
+		auto& nextMoves() { return moves_flip ? moves0 : moves1; }
+		void flipMoves() { moves_flip ^= 1; }
+
 
 		bool isAlive() const;
 		void updateLife();
@@ -88,6 +98,7 @@ private:
 	bool m_is_online = false;
 	int m_ticks_until_cry = 0;
 	SessionID m_last_id = 1;
+	int m_update_interval=4;
 
 	int m_tick=0;
 	std::string m_log;
@@ -155,6 +166,7 @@ public:
 	void applyMoves();
 	void applyMove(EntityPlayer& player, Inputs& inputs);
 	void sendMoves(nd::net::Message& m);
+	int playerCollisionCount();
 
 
 private:

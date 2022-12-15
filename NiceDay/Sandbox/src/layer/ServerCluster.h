@@ -10,7 +10,7 @@ class ServerLayer;
 class ServerCluster
 {
 private:
-	int TPS = 15;
+	int TPS = 30;
 
 	struct ServerInstance
 	{

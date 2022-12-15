@@ -168,8 +168,8 @@ public class Polygon {
                 return true;
         }
 
-        var p0 = b.getVec(a.size() - 1);
-        var p1 = b.getVec(0);
+        var p0 = a.getVec(a.size() - 1);
+        var p1 = a.getVec(0);
 
         for (int j = 0; j < b.size() - 1; ++j)
         {

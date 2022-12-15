@@ -19,7 +19,7 @@ public class App {
 
     private static App s_instance;
     private boolean m_running;
-    private int m_target_tps=15;
+    private int m_target_tps;
     private long m_tel_updates_per_frame;
     private int current_fps;
     private long lastFPSMillis;

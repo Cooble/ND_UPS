@@ -20,6 +20,7 @@ public class PlayerMoved implements NetSerializable {
     public List<Inputs> inputs = new ArrayList<>();
     // final position that the player got to
     public Vector2f targetPos = new Vector2f();
+    public Vector2f targetVelocity = new Vector2f();
     // latest event move id from client
     public int event_id;
 
@@ -28,6 +29,7 @@ public class PlayerMoved implements NetSerializable {
         b.put(name);
         b.putArray(inputs);
         b.put(targetPos);
+        b.put(targetVelocity);
         b.put(event_id);
     }
 
@@ -36,6 +38,7 @@ public class PlayerMoved implements NetSerializable {
         name = b.getString();
         inputs = b.getArray(Inputs::new);
         targetPos = b.getVector2f();
+        targetVelocity = b.getVector2f();
         event_id = b.getInt();
     }
 }

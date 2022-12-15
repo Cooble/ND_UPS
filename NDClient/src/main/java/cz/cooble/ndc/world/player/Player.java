@@ -2,6 +2,7 @@ package cz.cooble.ndc.world.player;
 
 import cz.cooble.ndc.Stats;
 import cz.cooble.ndc.graphics.*;
+import cz.cooble.ndc.net.prot.PlayerMoved;
 import cz.cooble.ndc.physics.Polygon;
 import cz.cooble.ndc.physics.Rect;
 import cz.cooble.ndc.world.World;
@@ -23,19 +24,23 @@ public class Player extends PhysEntity implements BatchRenderable2D {
 
     Animation m_animation;
 
+    PlayerMoved history;
+
     Vector2f lastPos = new Vector2f();
     Vector2f m_facing_direction = new Vector2f();
     boolean m_is_facing_left;
     float m_pose = 0;
     float m_last_pose = 0;
     int m_animation_var = 0;
+    String m_name;
 
     static SpriteSheetResource res = new SpriteSheetResource(new Texture(
             new Texture.Info("res/images/player3.png")
                     .filterMode(Texture.FilterMode.NEAREST)
                     .format(Texture.Format.RGBA)), 8, 1);
 
-    public Player() {
+    public Player(String name) {
+        m_name=name;
         m_is_item_consumer = true;
         m_velocity = new Vector2f();
         m_acceleration = new Vector2f(0.f, GRAVITY);
@@ -52,6 +57,18 @@ public class Player extends PhysEntity implements BatchRenderable2D {
         m_animation.setPosition(new Vector3f(-1, 0, 0));
         m_animation.setSize(new Vector2f(2, 3));
         m_bound = Polygon.toPolygon(Rect.createFromDimensions(-0.75f, 0, 1.5f, 2.9f));
+    }
+
+    public String getName() {
+        return m_name;
+    }
+
+    public void setHistory(PlayerMoved history) {
+        this.history = history;
+    }
+
+    public PlayerMoved getHistory() {
+        return history;
     }
 
     public void update(World w) {

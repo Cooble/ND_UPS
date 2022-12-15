@@ -1,6 +1,7 @@
 package cz.cooble.ndc.world.player;
 
 import cz.cooble.ndc.core.NBT;
+import cz.cooble.ndc.net.prot.PlayerMoved;
 import cz.cooble.ndc.world.World;
 import org.joml.Vector2f;
 
@@ -17,6 +18,8 @@ public abstract class WorldEntity {
     int m_id;// each entity instance has unique id
     long m_flags = 0;
     Vector2f m_pos=new Vector2f();//world pos
+
+
 
     public boolean hasFlag(long flags) {return (m_flags & flags) == flags;}
 

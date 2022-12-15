@@ -7,6 +7,19 @@ ServerCluster::ServerInstance::~ServerInstance()
 	thread.join();
 }
 
+
+/* Not the best optimized solution for exact sleep, but its better than nothing */
+static void exact_sleep_for(double dt)
+{
+	typedef std::chrono::high_resolution_clock clocki;
+
+	static constexpr std::chrono::duration<double> MinSleepDuration(0);
+	clocki::time_point start = clocki::now();
+	while (std::chrono::duration<double>(clocki::now() - start).count() < dt) {
+		std::this_thread::sleep_for(MinSleepDuration);
+	}
+}
+
 void ServerCluster::serverLoop(std::shared_ptr<ServerInstance> server)
 {
 	size_t millisPerTick = 1000 / TPS;
@@ -22,8 +35,14 @@ void ServerCluster::serverLoop(std::shared_ptr<ServerInstance> server)
 
 			//take a break for the rest of a tick
 			auto sleepFor = millisPerTick - updateTime;
-			if (millisPerTick > updateTime)
-				std::this_thread::sleep_for(std::chrono::milliseconds(sleepFor));
+
+
+
+			auto n = nd::nowTime();
+			if (millisPerTick > updateTime) {
+				//std::this_thread::sleep_for(std::chrono::milliseconds(sleepFor));
+				exact_sleep_for(sleepFor/1000.);
+			}
 		}
 		server->server->onDetach();
 	}

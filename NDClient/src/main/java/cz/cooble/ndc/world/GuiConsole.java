@@ -72,19 +72,20 @@ public class GuiConsole implements BatchRenderable2D {
             if (((KeyPressEvent) e).isRelease())
                 return;
             switch (((KeyPressEvent) e).getKeycode()) {
-                case GLFW_KEY_BACKSPACE -> {
+                case GLFW_KEY_BACKSPACE:
+                {
                     if (!currentLine.isEmpty())
                         currentLine = currentLine.substring(0, currentLine.length() - 1);
-                }
-                case GLFW_KEY_ENTER -> {
+                }break;
+                case GLFW_KEY_ENTER: {
                     enter();
                     start = false;
-                }
-                case GLFW_KEY_ESCAPE -> {
+                }break;
+                case GLFW_KEY_ESCAPE: {
                     editMode = false;
                     currentLine = "";
                     start = false;
-                }
+                }break;
             }
         }
 

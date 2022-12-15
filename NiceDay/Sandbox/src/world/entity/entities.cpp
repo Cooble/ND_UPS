@@ -19,8 +19,10 @@ using namespace nd;
 //PhysEntity======================================================
 
 
+
+
 //return if we have intersection
-inline static bool findBlockIntersection(World& w, const glm::vec2& entityPos, const Phys::Polygon& entityBound)
+static bool findBlockIntersection(World& w, const glm::vec2& entityPos, const Phys::Polygon& entityBound)
 {
 	auto& entityRectangle = entityBound.getBounds();
 	for (int x = entityRectangle.x0 - 1; x < ceil(entityRectangle.x1) + 1; ++x)
@@ -45,8 +47,12 @@ inline static bool findBlockIntersection(World& w, const glm::vec2& entityPos, c
 	}
 	return false;
 }
+bool PhysEntity::findBlockIntersections(World& w, const glm::vec2& entityPos, const nd::Phys::Polygon& entityBound)
+{
+	return findBlockIntersection(w, entityPos, entityBound);
+}
 
-inline static float getFloorHeight(World& w, const glm::vec2& entityPos, const Phys::Rectangle& entityRectangle)
+static float getFloorHeight(World& w, const glm::vec2& entityPos, const Phys::Rectangle& entityRectangle)
 {
 	float lineY = std::numeric_limits<float>::lowest();
 	for (int i = 0; i < 2; ++i)
@@ -109,17 +115,7 @@ void PhysEntity::computePhysics(World& w)
 	m_acceleration.x = lastXAcc;
 
 	computeWindResistance(w);
-	/*float lengthCab = Phys::asVect(m_velocity).lengthCab();
 
-	if (lengthCab > maxDistancePerStep)
-	{
-		int dividor = ceil(lengthCab / maxDistancePerStep);
-		for (int i = 0; i < dividor; ++i)
-		{
-			if (moveOrCollide(w, 1.0f / dividor))
-				break;
-		}
-	}*/
 	float lengthCab = glm::length(m_velocity);
 
 	if (lengthCab > maxDistancePerStep)
@@ -142,7 +138,7 @@ bool PhysEntity::moveOrCollide(World& w, float dt)
 	bool isSlippery = (w.getBlock(m_pos.x, m_pos.y - 1) != nullptr && w.getBlock(m_pos.x, m_pos.y - 1)->block_id ==
 		BLOCK_ICE)
 		|| (w.getBlock(m_pos.x, m_pos.y) != nullptr && w.getBlock(m_pos.x, m_pos.y)->block_id == BLOCK_ICE);
-	float floorResistance = isSlippery ? 0.005 : 0.2; //negative numbers mean conveyor belt Yeah!
+	float floorResistance = isSlippery ? 0.005f : 0.2f; //negative numbers mean conveyor belt Yeah!
 
 
 	//collision detection============================

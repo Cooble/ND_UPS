@@ -133,38 +133,36 @@ public class Main {
         vao.addBuffer(vbo);
         Shader.Source source = new Shader.Source();
 
-        source.vertex = """
-                #version 330 core
-                layout (location = 0) in vec3 position;
-                layout (location = 1) in vec2 uv;
+        source.vertex =
+               " #version 330 core\n"+
+               " layout (location = 0) in vec3 position;\n"+
+               " layout (location = 1) in vec2 uv;\n"+
+"\n"+
+               " out vec2 v_uv;\n"+
+               " \n"+
+               " uniform mat4 u_worldMatrix;\n"+
+               " uniform mat4 u_projectionMatrix;\n"+
+               " uniform mat4 u_viewMatrix;\n"+
+               "                 \n"+
+               " void main()\n"+
+               " {\n"+
+               "     gl_Position = /*u_projectionMatrix * u_viewMatrix * u_worldMatrix **/ vec4(position,1.f);\n"+
+               "     v_uv = uv;\n"+
+               " }";
 
-                out vec2 v_uv;
-                
-                uniform mat4 u_worldMatrix;
-                uniform mat4 u_projectionMatrix;
-                uniform mat4 u_viewMatrix;
-                                
-                void main()
-                {
-                    gl_Position = /*u_projectionMatrix * u_viewMatrix * u_worldMatrix **/ vec4(position,1.f);
-                    v_uv = uv;
-                }
-                """;
-
-        source.fragment = """
-                #version 330 core
-                
-                uniform sampler2D u_texture;
-                
-                layout(location=0) out vec4 color;
-                
-                in vec2 v_uv;
-                
-                void main(){
-                	vec4 cc = texture2D(u_texture, v_uv);
-                	color = vec4(1.f,1.f,1.f,1.f);
-                }
-                """;
+        source.fragment =
+               " #version 330 core\n"+
+               " \n"+
+               " uniform sampler2D u_texture;\n"+
+               " \n"+
+               " layout(location=0) out vec4 color;\n"+
+               " \n"+
+               " in vec2 v_uv;\n"+
+               " \n"+
+               " void main(){\n"+
+               " 	vec4 cc = texture2D(u_texture, v_uv);\n"+
+               " 	color = vec4(1.f,1.f,1.f,1.f);\n"+
+               " }";
 
 
         shader = new Shader(source);

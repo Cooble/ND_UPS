@@ -41,7 +41,11 @@ public class ChunkMesh {
     static Texture s_texture;
     static Texture s_texture_corners;
 
+    static boolean alreadyLoaded = false;
     public static void init(){
+        if(alreadyLoaded)
+            return;
+        alreadyLoaded=true;
 
         Texture.Info info = new Texture.Info();
 

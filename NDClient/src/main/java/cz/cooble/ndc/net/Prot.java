@@ -36,11 +36,14 @@ public enum Prot {
     // session, c_x, c_y, [pieces]
     ChunkACK,
     // session, c_x,c_y, piece
-    WorldUpdate,
-    //session, entity_updates[entity_id, type, physics_data] + key_press_history, block updates[x,y,block_data, time?,who]
-    PlayerUpdate,
-    //session, key_press_history
     Command,
+    // disconnect
+    Quit,
+
+    BlockModify,
+    BlockAck,
+    PlayersMoved,
+    PlayerMoves;
 }
 
 

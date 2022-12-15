@@ -26,10 +26,17 @@ namespace nd::net
 		Address() = default;
 		Address(const std::string& ip, int port);
 		Address(unsigned long ip, int port);
+		bool isValid() const;
 		static Address build(const std::string& ipWithPort);
 		std::string toString() const;
 		int port() const;
 		std::string ip() const;
+		bool operator==(const Address& address) const
+		{
+			return toString() == address.toString();
+		}
+
+		bool operator!=(const Address& address) const { return !this->operator==(address); }
 	};
 
 	struct Socket
@@ -174,16 +181,26 @@ namespace nd::net
 			pointer += sizeof(T);
 			return out;
 		}
+	private:
+		bool string_error;
+	public:
+		// true if readString could not read another string
+		// empty string is not an error, no space in buffer is
+		bool isStringError() const { return string_error; }
 
 		std::string readStringUntilNull(int maxSize)
 		{
+			string_error = false;
+
 			if (maxSize == -1)
 				maxSize = std::numeric_limits<int>::max();
 
 			auto remaingSize = std::min(maxSize, b.size() - pointer);
 
-			if (remaingSize <= 0)
+			if (remaingSize <= 0) {
+				string_error = true;
 				return "";
+			}
 
 			auto out = b.data() + pointer;
 

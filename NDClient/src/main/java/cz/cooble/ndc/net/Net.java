@@ -1,5 +1,6 @@
 package cz.cooble.ndc.net;
 
+import cz.cooble.ndc.net.prot.EstablishConnectionHeader;
 import cz.cooble.ndc.test.NetWriter;
 
 import java.net.InetSocketAddress;

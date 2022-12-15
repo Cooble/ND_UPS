@@ -4,11 +4,13 @@
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 uv;
 uniform mat4 u_transform;
+uniform mat4 u_transform_uv;
+
 out vec2 f_uv;
 
 void main() {
 	gl_Position = u_transform * vec4(position,0,1);
-	f_uv = uv;
+	f_uv = (u_transform_uv * vec4(uv,0,1)).xy;
 }
 
 

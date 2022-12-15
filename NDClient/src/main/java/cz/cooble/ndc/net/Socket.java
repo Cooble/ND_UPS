@@ -28,11 +28,15 @@ public class Socket {
             address = new InetSocketAddress("0.0.0.0", port);
             channel = DatagramChannel.open();
             channel.socket().bind(new InetSocketAddress(port));
+
             channel.configureBlocking(false);
             channel.register(selector, SelectionKey.OP_READ, new ClientRecord());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+    public int port(){
+        return channel.socket().getLocalPort();
     }
 
     public void close() {

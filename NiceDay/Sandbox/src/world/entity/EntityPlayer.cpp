@@ -31,10 +31,9 @@ void EntityPlayer::update(World& w)
 			m_is_swinging = false;
 			m_is_last_swing = false;
 		}
-
 	auto lastPos = m_pos;
 	auto lastFacingLeft = m_is_facing_left;
-	if (/*!Stats::move_through_blocks_enable*/true)
+	if (!m_fly)
 		PhysEntity::computePhysics(w);
 	else
 	{

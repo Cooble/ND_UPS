@@ -1,5 +1,6 @@
-package cz.cooble.ndc.net;
+package cz.cooble.ndc.net.prot;
 
+import cz.cooble.ndc.net.NetReader;
 import cz.cooble.ndc.test.NetWriter;
 
 public class EstablishConnectionHeader extends SessionProtocol {

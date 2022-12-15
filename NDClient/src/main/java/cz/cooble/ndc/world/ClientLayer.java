@@ -5,27 +5,30 @@ import cz.cooble.ndc.net.*;
 import cz.cooble.ndc.core.Layer;
 import cz.cooble.ndc.input.Event;
 import cz.cooble.ndc.input.KeyPressEvent;
+import cz.cooble.ndc.net.prot.*;
 import cz.cooble.ndc.test.NetWriter;
 
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.function.Consumer;
 
 import static cz.cooble.ndc.core.Utils.half_int;
-import static cz.cooble.ndc.net.ChunkProtocol.CHUNK_PIECE_COUNT;
+import static cz.cooble.ndc.net.prot.ChunkProtocol.CHUNK_PIECE_COUNT;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
 
 
 public class ClientLayer extends Layer {
 
 
-    private final InetSocketAddress lobbyAddress = new InetSocketAddress("127.0.0.1", 1234);
+    private InetSocketAddress lobbyAddress;
     private Socket socket;
+    private TCPTunnel tunnel;
     private int session_id;
     private boolean isSessionCreated;
     private InetSocketAddress serverAddress;
 
 
-    private final Set<Integer> pendingChunkIds = new HashSet<>();
+    private Set<Integer> pendingChunkIds;
     Integer currentPendingChunkID = -1;
     private Chunk chunkBuffer;
 
@@ -33,29 +36,73 @@ public class ClientLayer extends Layer {
     public static final String TM_CHUNK_REQ = "TIMEOUT_CHUNK";
     public static final String TM_INV_REQ = "TM_INV_REQ";
 
-    private final Timeout t = new Timeout();
+    private Timeout t = new Timeout();
 
-    private final Set<Integer> pendingPieces = new HashSet<>();
+    //private Timeout.Pocket serverTimeout = new Timeout.Pocket(2000);
+    private Timeout.Pocket serverTimeout = new Timeout.Pocket(1000000);
+
+    private Set<Integer> pendingPieces;
 
     private String playerName;
 
+
+    private void initTimeouts() {
+        t = new Timeout();
+        t.register(TM_INVITATION_ACK, 2000);
+        t.register(TM_CHUNK_REQ, 3000);
+        t.register(TM_INV_REQ, 2000);
+        serverTimeout.stop();
+    }
 
     @Override
     public void onAttach() {
         System.out.println("Client layer started");
         socket = new Socket(0);
+        System.out.println("Socket opened on port " + socket.port());
 
-        t.register(TM_INVITATION_ACK, 2000);
-        t.register(TM_CHUNK_REQ, 3000);
-        t.register(TM_INV_REQ, 2000);
+        lobbyAddress = new InetSocketAddress("127.0.0.1", 1234);
+        pendingChunkIds = new HashSet<>();
+        pendingPieces = new HashSet<>();
+        playerName = null;
+        chunkBuffer = null;
+        currentPendingChunkID = -1;
+        isSessionCreated = false;
+        session_id = -1;
+        tunnel = null;
+        serverAddress = null;
 
+        initTimeouts();
     }
 
-    public void openSession(String player) {
+    @Override
+    public void onDetach() {
+        if (isSessionCreated) {
+            System.out.println("Disconnecting from server");
+            closeSession();
+        }
+    }
+
+    public void openSession(String player, InetSocketAddress address) {
+        if (isSessionCreated)
+            return;
+
         playerName = player;
+        lobbyAddress = address;
         sendInvitationReq();
     }
 
+    public String getPlayerName() {
+        return playerName;
+    }
+
+    public void closeSession() {
+        initTimeouts();
+        if (!isSessionCreated)
+            return;
+        isSessionCreated = false;
+        sendClose(new Message(500));
+
+    }
 
     //=======EVENT=REQUESTS=========================
     private void sendInvitationReq() {
@@ -105,34 +152,41 @@ public class ClientLayer extends Layer {
         t.start(TM_INVITATION_ACK);
     }
 
-    private void sendBlockModifies(Message m) {
-        System.out.println("Sending Player Update");
+    private void sendMove(Message m) {
+        m.address = serverAddress;
+        for (var e : playerMoveEvents) {
+            e.serialize(new NetWriter(m.buffer));
+            System.out.println("[Sending_Move] eventId:" + e.event_id + " pos:" + e.pos.toString() + " input:" + e.inputs.toString());
+            socket.send(m);
+        }
+        playerMoveEvents.clear();
+    }
 
+    private void sendCommands(Message m) {
+        while (!outcomingCommands.isEmpty()) {
+            var a = new CommandProtocol();
+            a.action = Prot.Command;
+            a.session_id = session_id;
+            a.message = outcomingCommands.get(0);
+            outcomingCommands.remove(0);
+            a.serialize(new NetWriter(m.buffer));
+            m.address = serverAddress;
+            tunnel.write(m);
+        }
+    }
 
-        var a = new PlayerProtocol();
-        a.action = Prot.PlayerUpdate;
+    private void sendClose(Message m) {
+        System.out.println("Sending closing");
+
+        var a = new ControlProtocol();
+        a.action = Prot.Quit;
         a.session_id = session_id;
-        a.blockModifyEvents = blockModifyEvents;
         a.serialize(new NetWriter(m.buffer));
 
         m.address = serverAddress;
         socket.send(m);
-        blockModifyEvents.clear();
     }
 
-    private void sendMessages(Message m) {
-
-        while (!outCommingCommands.isEmpty()) {
-            var a = new CommandProtocol();
-            a.action = Prot.Command;
-            a.session_id = session_id;
-            a.message = outCommingCommands.get(0);
-            outCommingCommands.remove(0);
-            a.serialize(new NetWriter(m.buffer));
-            m.address = serverAddress;
-            socket.send(m);
-        }
-    }
 
     //=======EVENT=RESPONSE=========================
     private void onChunkACK(Message m) {
@@ -166,6 +220,7 @@ public class ClientLayer extends Layer {
             //discard
             System.out.println("Received foreign chunk piece, discarding");
         }
+        serverTimeout.start();
 
     }
 
@@ -184,17 +239,38 @@ public class ClientLayer extends Layer {
         isSessionCreated = true;
         System.out.println("Session id successfully obtained: " + a.session_id);
         t.stop(TM_INVITATION_ACK);
+        tunnel = new TCPTunnel(socket, serverAddress, session_id, 3000);
     }
 
-    private void onCommandReceived(Message m){
+    private void onCommandReceived(Message m) {
         var a = new CommandProtocol();
         a.deserialize(new NetReader(m.buffer));
-        incommingCommands.add(a.message);
-        System.out.println("Received Message from server: "+a.message);
+        incomingCommands.add(a.message);
+        System.out.println("Received Message from server: " + a.message);
+    }
+
+    private Consumer<String> onDisconnect;
+
+    public void setOnDisconnect(Consumer<String> onDisconnect) {
+        this.onDisconnect = onDisconnect;
+    }
+
+    private void onQuitReceived(Message m) {
+        var a = new ControlProtocol();
+        a.deserialize(new NetReader(m.buffer));
+
+        if (onDisconnect != null)
+            onDisconnect.accept(a.message);
     }
 
     private void onPacketReceived(Message m) {
-        System.out.println("Incoming datagram from " + m.address);
+        //System.out.println("Incoming datagram from " + m.address);
+        if (TCPTunnel.getClientID(m) != -1) {
+            if (tunnel != null) {
+                tunnel.receiveTunnelUDP(m);
+            }
+            return;
+        }
         var a = new ProtocolHeader();
         a.deserialize(new NetReader(m.buffer));
 
@@ -204,29 +280,100 @@ public class ClientLayer extends Layer {
             onSessionCreated(m);
         } else if (a.action == Prot.ChunkACK) {
             onChunkACK(m);
-        }
-        else if (a.action == Prot.Command) {
+        } else if (a.action == Prot.Command) {
             onCommandReceived(m);
+        } else if (a.action == Prot.Quit) {
+            onQuitReceived(m);
+        } else if (a.action == Prot.BlockModify || a.action == Prot.BlockAck) {
+            onBlockPacket(m);
+        } else if (a.action == Prot.PlayersMoved) {
+            onMoved(m);
         }
+    }
+
+    private void onMoved(Message m) {
+        serverTimeout.start();
+
+        PlayersMoved moved = new PlayersMoved();
+        moved.deserialize(new NetReader(m.buffer));
+        playersMoved.add(moved);
+        System.out.println("[Receiving_Moves]:");
+        for (var e : moved.moves) {
+            System.out.println("\t-> eventid:" + e.event_id + " pos:" + e.targetPos);
+            for (var o : e.inputs)
+                System.out.println("\t\t* " + o.toString());
+        }
+    }
+
+    Consumer<ProtocolHeader> onBlockEvents;
+
+    public void setOnBlockEventsCallback(Consumer<ProtocolHeader> onBlockEvents) {
+        this.onBlockEvents = onBlockEvents;
+    }
+
+    private void onBlockPacket(Message m) {
+        var a = new ProtocolHeader();
+        a.deserialize(new NetReader(m.buffer));
+
+        if (a.action == Prot.BlockModify) {
+            var e = new BlockModify();
+            e.deserialize(new NetReader(m.buffer));
+            onBlockEvents.accept(e);
+        } else if (a.action == Prot.BlockAck) {
+            var e = new BlockAck();
+            e.deserialize(new NetReader(m.buffer));
+            onBlockEvents.accept(e);
+        }
+        serverTimeout.start();
+    }
+
+    public void sendBlockUpdate(Message m) {
+        for (var e : blockModifies) {
+            e.serialize(new NetWriter(m.buffer));
+            tunnel.write(m);
+        }
+        blockModifies.clear();
     }
 
     //===============================================
 
+    String errorMessage;
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
     @Override
     public void onUpdate() {
-        Message m = new Message(2048);
+        Message m = new Message(1500);
+
+        // POLL
         while (socket.receive(m) == NetResponseFlags.Success)
             try {
                 onPacketReceived(m);
             } catch (Exception e) {
                 e.printStackTrace();
-                System.out.println("Received invalid datagram, discarding");
+                errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
+                System.out.println(errorMessage);
+                errorMessage = e.toString();
             }
+        while (tunnel != null && tunnel.read(m)) {
+            try {
+                onPacketReceived(m);
+            } catch (Exception e) {
+                e.printStackTrace();
+                errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
+                System.out.println(errorMessage);
+                errorMessage = e.toString();
+            }
+        }
 
+        // SEND
         updateBeforeSession(m);
         if (!isSessionCreated)
             return;
         updateAfterSession(m);
+
     }
 
     private void updateBeforeSession(Message m) {
@@ -244,6 +391,10 @@ public class ClientLayer extends Layer {
     }
 
     private void updateAfterSession(Message m) {
+        if (isServerTimeout())
+            if (onDisconnect != null)
+                onDisconnect.accept("Server stopped responding");
+
         // pick new chunk to ask for
         if (currentPendingChunkID == -1 && !pendingChunkIds.isEmpty()) {
             currentPendingChunkID = pendingChunkIds.stream().findFirst().get();
@@ -262,24 +413,68 @@ public class ClientLayer extends Layer {
             }
         }
 
-        if (!blockModifyEvents.isEmpty())
-            sendBlockModifies(m);
+        sendMove(m);
+        sendBlockUpdate(m);
+        sendCommands(m);
 
-        if (!outCommingCommands.isEmpty())
-            sendMessages(m);
+        // flush tcp content
+        tunnel.flush(m);
+
     }
-
 
     @Override
     public void onEvent(Event e) {
         if (e instanceof KeyPressEvent) {
             if (((KeyPressEvent) e).isRelease())
                 return;
-
             if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_S) {
-                sendInvitationReq();
+
             }
         }
+    }
+
+
+    public boolean isSessionCreated() {
+        return isSessionCreated;
+    }
+
+    public boolean hasPendingChunks() {
+        return !pendingChunkIds.isEmpty();
+    }
+
+    List<BlockModify> blockModifies = new ArrayList<>();
+    List<PlayersMoved> playersMoved = new ArrayList<>();
+    List<PlayerMoves> playerMoveEvents = new ArrayList<>();
+    List<String> outcomingCommands = new ArrayList<>();
+    List<String> incomingCommands = new ArrayList<>();
+
+
+    // ======= ADD PENDING =====================
+    public void addPendingBlockModify(BlockModify e) {
+        blockModifies.add(e);
+    }
+
+    public void addPendingPlayerMove(PlayerMoves playerMoveEvent) {
+        playerMoveEvent.session_id = session_id;
+        playerMoveEvents.add(playerMoveEvent);
+    }
+
+    public void addPendingCommand(String s) {
+        outcomingCommands.add(s);
+    }
+
+    public void addPendingChunk(int chunkid) {
+        pendingChunkIds.add(chunkid);
+    }
+
+    // ======= GET ==============================
+    public String getNewCommand() {
+        if (incomingCommands.isEmpty())
+            return null;
+
+        var out = incomingCommands.get(0);
+        incomingCommands.remove(0);
+        return out;
     }
 
     public Chunk getNewChunk() {
@@ -294,36 +489,17 @@ public class ClientLayer extends Layer {
         return null;
     }
 
-    public void addPendingChunk(int chunkid) {
-        pendingChunkIds.add(chunkid);
-    }
-
-    public boolean isSessionCreated() {
-        return isSessionCreated;
-    }
-
-    public boolean hasPendingChunks() {
-        return !pendingChunkIds.isEmpty();
-    }
-
-    List<BlockModifyEvent> blockModifyEvents = new ArrayList<>();
-    public void addPendingBlockModify(BlockModifyEvent e) {
-        blockModifyEvents.add(e);
-    }
-
-    List<String> outCommingCommands = new ArrayList<>();
-    public void addPendingCommand(String s) {
-        outCommingCommands.add(s);
-    }
-
-    List<String> incommingCommands = new ArrayList<>();
-
-    public String getCommand(){
-        if(incommingCommands.isEmpty())
+    public PlayersMoved getPlayersMoved() {
+        if (playersMoved.isEmpty())
             return null;
 
-        var out = incommingCommands.get(0);
-        incommingCommands.remove(0);
+        var out = playersMoved.get(0);
+        playersMoved.remove(0);
         return out;
     }
+
+    public boolean isServerTimeout() {
+        return serverTimeout.isTimeout();
+    }
+
 }

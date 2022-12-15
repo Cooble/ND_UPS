@@ -155,6 +155,12 @@
             <artifactId>joml</artifactId>
             <version>${joml.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>20.1.0</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
 </project>

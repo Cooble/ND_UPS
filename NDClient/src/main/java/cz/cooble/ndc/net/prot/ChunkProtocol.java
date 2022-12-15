@@ -1,8 +1,9 @@
-package cz.cooble.ndc.net;
+package cz.cooble.ndc.net.prot;
 
+import cz.cooble.ndc.net.NetReader;
 import cz.cooble.ndc.test.NetWriter;
 
-public class ChunkProtocol extends SessionProtocol{
+public class ChunkProtocol extends SessionProtocol {
     public int c_x,c_y,piece=-1;
 
     public static final int CHUNK_PIECE_SIZE = 1040; //52 blocks

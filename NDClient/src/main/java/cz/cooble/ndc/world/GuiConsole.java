@@ -1,5 +1,6 @@
 package cz.cooble.ndc.world;
 
+import cz.cooble.ndc.core.App;
 import cz.cooble.ndc.core.Pair;
 import cz.cooble.ndc.graphics.BatchRenderable2D;
 import cz.cooble.ndc.graphics.BatchRenderer2D;
@@ -36,7 +37,6 @@ public class GuiConsole implements BatchRenderable2D {
     boolean editMode;
 
     private Consumer<String> onEnter = s -> {};
-
 
     public GuiConsole() {
         fontMaterial = FontMaterial.Lib.getMaterial("fonts/andrew_czech.fnt");
@@ -100,8 +100,10 @@ public class GuiConsole implements BatchRenderable2D {
     }
 
     public void enter() {
-        addLine(currentLine);
-        onEnter.accept(currentLine);
+        if (!currentLine.isEmpty()) {
+            addLine(currentLine);
+            onEnter.accept(currentLine);
+        }
         currentLine = "";
         editMode = false;
     }
@@ -116,12 +118,13 @@ public class GuiConsole implements BatchRenderable2D {
             blinking += 2 * BLINK_INTERVAL_HALF;
         }
 
-        while (!lines.isEmpty() && lines.get(0).getSecond().isTimeout())
-            lines.remove(0);
+        // while (!lines.isEmpty() && lines.get(0).getSecond().isTimeout())
+        //     lines.remove(0);
     }
 
 
     String serverColor = Font.colorize(Font.BLACK, Font.RED);
+    String playerColor = Font.colorize(Font.BLACK, Font.WHITE);
     String chatColor = Font.colorize(Font.BLUE, Font.WHITE);
     String commandColor = Font.colorize(Font.BLACK, Font.GREEN);
 
@@ -137,9 +140,10 @@ public class GuiConsole implements BatchRenderable2D {
             String name = s.substring(1, prepStart);
             if (name.equals("server"))
                 return serverColor + s;
-            return chatColor + s;
+            else
+                return playerColor + s.substring(0, prepStart + 1) + chatColor + s.substring(prepStart + 1);
         }
-        return chatColor+s;
+        return chatColor + s;
     }
 
     @Override
@@ -147,17 +151,21 @@ public class GuiConsole implements BatchRenderable2D {
         List<String> out = new ArrayList<>();
         int lineCount = lines.size() + (isEditMode() ? 1 : 0);
         for (var e : lines)
-            out.add(stylish(e.getFirst()));
+            if (!e.getSecond().isTimeout() || isEditMode())
+                out.add(stylish(e.getFirst()));
+
         if (isEditMode())
             out.add(stylish(currentLine + (isBlink() ? "_" : "")));
+        else out.add("");// one line without nothing
 
         var offset = fontMaterial.font.getLineHeight() * 0.05f;
         TextBuilder.buildMesh(out, fontMaterial.font, textMesh, TextBuilder.ALIGN_LEFT, null, null);
-        renderer2D.push(new Matrix4f().translate(offset, (lineCount - 1) * fontMaterial.font.getLineHeight() + offset, 0));
+
+        renderer2D.push(new Matrix4f().translate(offset * 4, (out.size() - 1) * fontMaterial.font.getLineHeight() + offset, 0));
         renderer2D.submitText(textMesh, fontMaterial);
         renderer2D.pop();
         if (editMode)
-            renderer2D.submitColorQuad(new Vector3f(0, 0, 0), new Vector2f(fontMaterial.font.getTextWidth(currentLine + "_") + 1 + offset * 2, fontMaterial.font.getLineHeight() + offset * 2), new Vector4f(0, 0, 0, 0.5f));
+            renderer2D.submitColorQuad(new Vector3f(offset, offset, 0), new Vector2f(App.get().getWindow().getWidth() - 2 * offset, fontMaterial.font.getLineHeight() + offset * 2), new Vector4f(0, 0, 0, 0.5f));
     }
 
     public void openEditMode() {

@@ -157,6 +157,12 @@ namespace NetConversions
 	{
 		r.write(std::to_string(from));
 	}
+	template <>
+	inline void serialize<bool>(const bool& from, NetWriter& r)
+	{
+		int i = from;
+		serialize<int>(i, r);
+	}
 
 	template <>
 	inline void serialize<std::string>(const std::string& from, NetWriter& r)
@@ -230,6 +236,15 @@ namespace NetConversions
 		to = out;
 		return true;
 	}
+	template <>
+	inline bool deserialize<bool>(bool& to, NetReader& r)
+	{
+		int i;
+		if (!deserialize(i, r))
+			return false;
+		to = i;
+		return true;
+	}
 
 	template <>
 	inline bool deserialize<float>(float& to, NetReader& r)
@@ -263,7 +278,7 @@ namespace NetConversions
 	inline bool deserialize<std::string>(std::string& to, NetReader& r)
 	{
 		to = r.readStringUntilNull(-1);
-		return !to.empty();
+		return !r.isStringError();
 	}
 
 	template <>

@@ -59,7 +59,7 @@ public class Font {
     }
 
 
-    Charac getChar(int id) {
+    public Charac getChar(int id) {
         var out = chars.get(id);
         if (out == null)
             return nullChar;

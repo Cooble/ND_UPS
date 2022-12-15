@@ -37,6 +37,5 @@ public class Layer {
     public String getName() {
         return m_name;
     }
-
 }
 

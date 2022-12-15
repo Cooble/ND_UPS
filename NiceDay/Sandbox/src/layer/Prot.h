@@ -42,11 +42,14 @@ enum class Prot :int
 	// session, c_x, c_y, [pieces]
 	ChunkACK,
 	// session, c_x,c_y, piece
-	WorldUpdate,
-	//session, entity_updates[entity_id, type, physics_data] + key_press_history, block updates[x,y,block_data, time?,who]
-	PlayerUpdate,
-	//session, key_press_history
 	Command,
+	// disconnect
+	Quit,
+
+	BlockModify,
+	BlockAck,
+	PlayersMoved,
+	PlayerMoves
 };
 
 inline const char* ProtStrings[128] = {
@@ -65,9 +68,13 @@ inline const char* ProtStrings[128] = {
 	"ClusterPong	",
 	"ChunkREQ		",
 	"ChunkACK		",
-	"WorldUpdate	",
-	"PlayerProtocol ",
-	"Command		"
+	"Command		",
+	"Quit			",
+	"BlockModify	",
+	"BlockAck		",
+	"PlayersMoved	",
+	"PlayerMoves	",
+
 };
 
 
@@ -129,6 +136,12 @@ struct EstablishConnectionProtocol : SessionProtocol
 			return false;
 		reader.get(player, EstablishConnectionProtocol_STRING_LENGTH);
 		reader.get(server, EstablishConnectionProtocol_STRING_LENGTH);
+
+		// forbid longer names
+		if (player.size() > 11 && server.size() > 32)
+		{
+			return false;
+		}
 		return true;
 	}
 
@@ -173,98 +186,7 @@ struct ChunkProtocol : SessionProtocol
 	}
 };
 
-//session, entity_updates[entity_id, type, physics_data] + key_press_history, block updates[x,y,block_data, time?,who]
-struct WorldUpdate : SessionProtocol
-{
-	struct EntityUpdate : Serializable
-	{
-		struct PhysicsData
-		{
-			glm::vec2 pos, velocity, acceleration;
-		};
-
-		EntityID id;
-		EntityType type;
-		PhysicsData physics;
-
-		bool deserialize(nd::net::NetReader& reader)
-		{
-			return
-				reader.get(id) &&
-				reader.get(type) &&
-				reader.get(physics.pos) &&
-				reader.get(physics.velocity) &&
-				reader.get(physics.acceleration);
-		}
-
-		void serialize(nd::net::NetWriter& reader) const
-		{
-			reader.put(id);
-			reader.put(type);
-			reader.put(physics.pos);
-			reader.put(physics.velocity);
-			reader.put(physics.acceleration);
-		}
-	};
-
-	std::vector<EntityUpdate> entity_updates;
-
-	bool deserialize(nd::net::NetReader& reader)
-	{
-		if (!SessionProtocol::deserialize(reader))
-			return false;
-		reader.get(entity_updates);
-		return true;
-	}
-
-	void serialize(nd::net::NetWriter& writer) const
-	{
-		SessionProtocol::serialize(writer);
-		writer.put(entity_updates);
-	}
-};
-
-struct PlayerProtocol : SessionProtocol
-{
-	struct BlockModify : Serializable
-	{
-		BlockID block_id;
-		bool blockOrWall;
-		glm::ivec2 pos;
-
-		bool deserialize(nd::net::NetReader& reader)
-		{
-			return
-				reader.get(block_id) &&
-				reader.get(*(int*)&blockOrWall) &&
-				reader.get(pos);
-		}
-
-		void serialize(nd::net::NetWriter& writer) const
-		{
-			writer.put(block_id);
-			writer.put(*(const int*)&blockOrWall);
-			writer.put(pos);
-		}
-	};
-
-	std::vector<BlockModify> block_modifies;
-
-	bool deserialize(nd::net::NetReader& reader)
-	{
-		if (!SessionProtocol::deserialize(reader))
-			return false;
-
-		reader.get(block_modifies);
-		return true;
-	}
-
-	void serialize(nd::net::NetWriter& writer) const
-	{
-		SessionProtocol::serialize(writer);
-		writer.put(block_modifies);
-	}
-};
+//todo command protocol is not session protocol
 
 struct CommandProtocol : SessionProtocol
 {
@@ -276,8 +198,7 @@ struct CommandProtocol : SessionProtocol
 		if (!SessionProtocol::deserialize(reader))
 			return false;
 
-		reader.get(message);
-		return true;
+		return reader.get(message);
 	}
 
 	void serialize(nd::net::NetWriter& writer) const
@@ -285,4 +206,182 @@ struct CommandProtocol : SessionProtocol
 		SessionProtocol::serialize(writer);
 		writer.put(message);
 	}
+};
+
+struct ControlProtocol : CommandProtocol
+{
+	ControlProtocol() { action = Prot::Quit; }
+};
+
+struct BlockAck : ProtocolHeader
+{
+	int event_id;
+	bool gut;
+
+	BlockAck() { action = Prot::BlockAck; }
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!ProtocolHeader::deserialize(reader))
+			return false;
+
+		return reader.get(event_id) && reader.get(gut);
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		ProtocolHeader::serialize(writer);
+		writer.put(event_id);
+		writer.put(gut);
+	}
+};
+
+struct BlockModify : ProtocolHeader
+{
+	int block_id;
+	bool blockOrWall;
+	int x, y;
+	int event_id;
+
+	BlockModify() { action = Prot::BlockModify; }
+
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!ProtocolHeader::deserialize(reader))
+			return false;
+
+		return
+			reader.get(block_id) &&
+			reader.get(blockOrWall) &&
+			reader.get(x) &&
+			reader.get(y) &&
+			reader.get(event_id);
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		ProtocolHeader::serialize(writer);
+		writer.put(block_id);
+		writer.put(blockOrWall);
+		writer.put(x);
+		writer.put(y);
+		writer.put(event_id);
+	}
+};
+
+struct Inputs : nd::net::Serializable
+{
+	bool up, down, left, right;
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		std::string s;
+		if (!reader.get(s) || s.size() != 4)
+			return false;
+
+		up = s[0] == '1';
+		down = s[1] == '1';
+		left = s[2] == '1';
+		right = s[3] == '1';
+
+		return true;
+	}
+
+	std::string toString() const
+	{
+		std::string s;
+		s += (char)('0' + up);
+		s += (char)('0' + down);
+		s += (char)('0' + left);
+		s += (char)('0' + right);
+		return s;
+	}
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		writer.put(toString());
+	}
+
+	
+};
+
+struct PlayerMoves : SessionProtocol
+{
+	Inputs inputs;
+	glm::vec2 pos;
+	int event_id;
+
+
+	PlayerMoves() { action = Prot::PlayerMoves; }
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!SessionProtocol::deserialize(reader))
+			return false;
+
+		return
+			reader.get(inputs) &&
+			reader.get(pos) &&
+			reader.get(event_id);
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		SessionProtocol::serialize(writer);
+		writer.put(inputs);
+		writer.put(pos);
+		writer.put(event_id);
+	}
+};
+
+struct PlayerMoved:nd::net::Serializable
+{
+	// player
+	std::string name;
+	// inputs issued by the player in order to get to targetPos
+	std::vector<Inputs> inputs;
+	// final position that the player got to
+	glm::vec2 targetPos;
+	// latest event move id from client
+	int event_id;
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		return
+			reader.get(name) &&
+			reader.get(inputs) &&
+			reader.get(targetPos) &&
+			reader.get(event_id);
+	
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		writer.put(name);
+		writer.put(inputs);
+		writer.put(targetPos);
+		writer.put(event_id);
+	}
+};
+
+struct PlayersMoved:ProtocolHeader
+{
+	std::vector<PlayerMoved> moves;
+
+	PlayersMoved() { action = Prot::PlayersMoved; }
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!ProtocolHeader::deserialize(reader))
+			return false;
+
+		return reader.get(moves);
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		ProtocolHeader::serialize(writer);
+		writer.put(moves);
+	}
+
 };

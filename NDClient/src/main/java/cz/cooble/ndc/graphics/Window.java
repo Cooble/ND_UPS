@@ -73,7 +73,7 @@ public class Window {
             var pX = stack.mallocDouble(1);
             var pY = stack.mallocDouble(1);
             glfwGetCursorPos(m_window, pX, pY);
-            return new Vector2f((float) pX.get(), (float) pY.get());
+            return new Vector2f((float) pX.get(), (float) (getHeight()-pY.get()));
         }
     }
 

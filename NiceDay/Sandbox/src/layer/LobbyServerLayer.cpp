@@ -46,21 +46,27 @@ LobbyServerLayer::PlayerInfo::PlayerInfo()
 	updateLife();
 }
 
+
 void LobbyServerLayer::onAttach()
 {
 	nd::ResourceMan::init();
 	nd_registry::registerEverything();
-
 	nd::net::init();
+
+	try
+	{
+		createBasicServers();
+	}
+	catch (...)
+	{
+		ND_ERROR("Error encountered during parsing settings.json, remove settings.json before starting server.");
+		m_close_pending = true;
+		return;
+	}
 	auto info = nd::net::CreateSocketInfo();
 	info.async = true;
-	info.port = 1234;
+	info.port = m_address.port();
 	createSocket(m_socket, info);
-
-	createBasicServers();
-
-	int i = sizeof(BlockStruct);
-	i = i;
 }
 
 void LobbyServerLayer::onDetach()
@@ -70,23 +76,6 @@ void LobbyServerLayer::onDetach()
 
 void LobbyServerLayer::onEvent(nd::Event& e)
 {
-	if (e.getEventType() == nd::Event::KeyPress)
-	{
-		auto& w = dynamic_cast<nd::KeyPressEvent&>(e);
-		if (w.getFreshKey() == nd::KeyCode::S)
-		{
-			Message m;
-
-			ProtocolHeader header;
-			header.action = Prot::Ping;
-
-			NetWriter(m.buffer).put(header);
-
-			nd::net::send(m_socket, m);
-
-			ND_INFO("Sending ping req");
-		}
-	}
 }
 
 void LobbyServerLayer::onUpdate()
@@ -96,12 +85,12 @@ void LobbyServerLayer::onUpdate()
 	checkTimeout();
 
 	Message m;
-	m.buffer.reserve(1024);
+	m.buffer.reserve(1500);
 
 	while (receive(m_socket, m) == NetResponseFlags_Success)
 	{
 		ProtocolHeader header;
-		if(!NetReader(m.buffer).get(header))
+		if (!NetReader(m.buffer).get(header))
 			continue;
 
 		switch (header.action)
@@ -142,7 +131,7 @@ void LobbyServerLayer::pingClusters()
 	if (timeUntilPing-- == 0)
 	{
 		timeUntilPing = server_const::PING_INTERVAL;
-		ND_INFO("Ping");
+		//ND_INFO("Ping");
 		Message m;
 		ProtocolHeader p;
 		p.action = Prot::ClusterPing;
@@ -160,11 +149,14 @@ void LobbyServerLayer::checkTimeout()
 {
 	//throw away dead players
 	auto iter = m_player_book.begin();
-	while (iter != m_player_book.end()) {
-		if (!iter->second.isAlive()) {
+	while (iter != m_player_book.end())
+	{
+		if (!iter->second.isAlive())
+		{
 			iter = m_player_book.erase(iter);
 		}
-		else {
+		else
+		{
 			++iter;
 		}
 	}
@@ -172,19 +164,69 @@ void LobbyServerLayer::checkTimeout()
 }
 
 
-void LobbyServerLayer::createBasicServers()
+bool LobbyServerLayer::createBasicServers()
 {
-	m_address = Address("127.0.0.1", server_const::LOBBY_PORT);
+	if (!std::filesystem::exists("settings.json"))
+	{
+		std::string f = R"(
+{
+    "port": 1234,
+    "ip": "127.0.0.1",
+	"worlds":{
+		"overworld":{
+				"port": 1230
+			},
+		"nether":{
+				"port": 1231
+			}
+	}
+}
+)";
+		std::ofstream o("settings.json");
+		o << f;
+		ND_INFO("JSON Settings file not found, creating one.");
+	}
 
-	/*ServerInfo i0;
-	ServerInfo i1;
-	i0.address = Address(ADDR_ANY, WORLD_SERVER_0_PORT);
-	i1.address = Address(ADDR_ANY, WORLD_SERVER_1_PORT);
-	m_server_book[OVERWORLD] = i0;
-	m_server_book[OVERWORLD] = i1;*/
+	std::ifstream i("settings.json");
+	json j;
+	i >> j;
 
-	m_cluster.startServer(new ServerLayer(OVERWORLD, WORLD_SERVER_0_PORT, m_address));
-	//m_cluster.startServer(new ServerLayer(NETHER, WORLD_SERVER_1_PORT, m_address));
+	m_address = nd::net::Address(j.value("ip", "127.0.0.1"), j.value("port", server_const::LOBBY_PORT));
+	if (!m_address.isValid())
+	{
+		ND_ERROR("Settings parsing failed invalid format");
+		return false;
+	}
+	ND_INFO("Lobby server settings loaded: {}", m_address.toString());
+
+	std::vector<std::pair<std::string, nd::net::Address>> servers;
+
+	auto& worlds = j["worlds"];
+	if (worlds.empty())
+	{
+		servers.emplace_back("overworld", nd::net::Address("0.0.0.0", WORLD_SERVER_0_PORT));
+	}
+	else
+		for (auto& w : worlds.items())
+		{
+			auto name = w.key();
+			int port = w.value().value("port", 0);
+			if (!nd::net::Address("127.0.0.1", port).isValid())
+			{
+				ND_ERROR("Invalid port number encountered during settings load.");
+				return false;
+			}
+			servers.emplace_back(name, nd::net::Address("0.0.0.0", port));
+		}
+
+	for (auto& [string,address] : servers)
+	{
+		ND_INFO("Creating Server: {} on port {}", string, address.port());
+		m_cluster.startServer(new ServerLayer(string, address.port(), m_address));
+	}
+	// dont forget to set first server as gateway
+	GATEWAY = servers[0].first;
+	return true;
 }
 
 // redirect request to world server
@@ -192,25 +234,33 @@ void LobbyServerLayer::onInvReq(nd::net::Message& m)
 {
 	EstablishConnectionProtocol playerHeader;
 	if (!NetReader(m.buffer).get(playerHeader))
-		return;
-
-
-	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
-	playerInfo.address = m.address; // save sender address
-
-	if(!m_server_book.contains(playerInfo.serverName))
 	{
-		ND_INFO("Cannot respond to inv request: No servers running, not even gateway");
+		ND_WARN("InvREQ: Could not parse");
 		return;
 	}
 
-	ServerInfo& server = m_server_book[playerInfo.serverName];
-	// server is dead lets try gateway instead
-	if (!server.isAlive())
-		playerInfo.serverName = GATE_WAY;
+	if (playerHeader.player.size() < server_const::MIN_PLAYER_NAME_LENGTH
+		|| playerHeader.player.size() > server_const::MAX_PLAYER_NAME_LENGTH)
+	{
+		ND_WARN("InvREQ: Attempt with longer name: {}", playerHeader.player);
+		return;
+	}
 
+	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
+	playerInfo.address = m.address; // save sender address
+	if (!m_server_book.contains(playerInfo.serverName) || !m_server_book[playerInfo.serverName].isAlive())
+	{
+		ND_INFO("InvREQ: Could not find alive server {}, choosing GATEWAY: {} instead", playerInfo.serverName, GATEWAY);
+		playerInfo.serverName = GATEWAY;
+	}
+
+	if (!m_server_book[playerInfo.serverName].isAlive())
+	{
+		ND_WARN("InvREQ: Cannot respond: No servers running, not even gateway");
+		return;
+	}
 	NetWriter(m.buffer).put(playerHeader);
-	m.address = server.address;
+	m.address = m_server_book[playerInfo.serverName].address;
 	nd::net::send(m_socket, m);
 }
 
@@ -219,8 +269,16 @@ void LobbyServerLayer::onInvitation(nd::net::Message& m)
 	EstablishConnectionProtocol playerHeader;
 
 	if (!NetReader(m.buffer).get(playerHeader))
+	{
+		ND_WARN("Inv: Could not parse");
 		return;
+	}
 
+	if (!m_player_book.contains(playerHeader.player))
+	{
+		ND_WARN("Inv: Received invitation from server for player {} who has already timed out", playerHeader.player);
+		return;
+	}
 
 	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
 

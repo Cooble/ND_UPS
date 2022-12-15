@@ -9,7 +9,7 @@
 
 
 // To enable tcp tunnel testing uncomment following line
-#define TEST_TCP_TUNNEL
+//#define TEST_TCP_TUNNEL
 
 #ifdef TEST_TCP_TUNNEL
 #include "TestTCPTunnel.h"

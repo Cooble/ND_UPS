@@ -49,7 +49,9 @@ public class TextMesh {
     static final int VERTEX_BYTES = (2 + 2 + 1 + 1) * 4;
     static final int CHARM_BYTES = VERTEX_BYTES * 4;
 
-    public static class CharM {public Vertex[] v = new Vertex[4];}
+    public static class CharM {
+        public Vertex[] v = new Vertex[4];
+    }
 
     CharM[] src;
     // usually stores hash of the string
@@ -84,8 +86,10 @@ public class TextMesh {
     }
 
     public void setChar(int index, float x, float y, float x1, float y1, int color, int borderColor, Font.Charac ch) {
-        var che = src[index];
+        if (src[index] == null)
+            src[index] = new CharM();
 
+        var che = src[index];
         che.v[0] = new Vertex(x, y, ch.u, ch.v, color, borderColor);
         che.v[1] = new Vertex(x1, y, ch.u1, ch.v, color, borderColor);
         che.v[2] = new Vertex(x1, y1, ch.u1, ch.v1, color, borderColor);
@@ -95,7 +99,7 @@ public class TextMesh {
     public void setChar(int index, float x, float y, float x1, float y1, float u, float v, float u1, float v1,
                         int color, int borderColor, Font.Charac ch) {
         var che = new CharM();
-        src[index]=che;
+        src[index] = che;
         che.v[0] = new Vertex(x, y, ch.u + u, ch.v + v, color, borderColor);
         che.v[1] = new Vertex(x1, y, ch.u1 + u1, ch.v + v, color, borderColor);
         che.v[2] = new Vertex(x1, y1, ch.u1 + u1, ch.v1 + v1, color, borderColor);

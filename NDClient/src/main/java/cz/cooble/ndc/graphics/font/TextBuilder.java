@@ -18,6 +18,12 @@ public class TextBuilder {
     public static final int ALIGN_LEFT = 1;
     public static final int ALIGN_CENTER = 2;
 
+    public static int getMaxLength(List<String> lines,Font font){
+        int out =0;
+        for(var e:lines)
+            out = Math.max(font.getTextWidth(e),out);
+        return out;
+    }
     public static boolean buildMesh(List<String> lines, Font font, TextMesh mesh, int alignment, Vector4i clipRect, TextMesh.CursorProp cursor) {
         if(clipRect==null)
             clipRect = new Vector4i(-100000,-100000,100000,100000);
@@ -146,6 +152,11 @@ public class TextBuilder {
     }
 
 
+    public static List<String> convertToLines(String text){
+        ArrayList<String> out  = new ArrayList<>();
+        out.add(text);
+        return out;
+    }
     public static List<String> convertToLines(String text, Font font, int maxLineWidth) {
         List<String> lines = new ArrayList<>();
 

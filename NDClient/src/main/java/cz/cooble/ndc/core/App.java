@@ -1,5 +1,6 @@
 package cz.cooble.ndc.core;
 
+import cz.cooble.ndc.GuiLayer;
 import cz.cooble.ndc.WorldLayer;
 import cz.cooble.ndc.test.TestFBO;
 import cz.cooble.ndc.graphics.GCon;
@@ -50,15 +51,17 @@ public class App {
 
         var client = new ClientLayer() ;
         layerStack.push(client);
-
+        var guila=  new GuiLayer();
+        layerStack.push(guila);
         // CUSTOM LAYERS
       //  layerStack.push(new TestFBO());
       // layerStack.push(new TestTexture());
        // layerStack.push(new ExampleLayer());
-        layerStack.push(new WorldLayer(client));
-       // layerStack.push(new ExampleLayer2());
+        layerStack.push(new WorldLayer(client,guila));
 
-        m_target_tps=60;
+        // layerStack.push(new ExampleLayer2());
+
+        m_target_tps=30;
     }
 
     public void render(){
@@ -80,6 +83,10 @@ public class App {
         for(var l:layerStack)
             l.onUpdate();
 
+    }
+
+    public LayerStack getLayerStack() {
+        return layerStack;
     }
 
     public void onEventCallback(Event event) {

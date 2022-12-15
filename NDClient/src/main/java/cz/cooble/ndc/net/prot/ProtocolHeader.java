@@ -1,5 +1,8 @@
-package cz.cooble.ndc.net;
+package cz.cooble.ndc.net.prot;
 
+import cz.cooble.ndc.net.NetReader;
+import cz.cooble.ndc.net.NetSerializable;
+import cz.cooble.ndc.net.Prot;
 import cz.cooble.ndc.test.NetWriter;
 
 import java.io.ByteArrayOutputStream;
@@ -7,7 +10,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class ProtocolHeader implements NetSerializable{
+public class ProtocolHeader implements NetSerializable {
     public static final String BANG = "[_ND_]";
     public Prot action;
 

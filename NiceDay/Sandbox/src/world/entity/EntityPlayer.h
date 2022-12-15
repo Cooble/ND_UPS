@@ -15,9 +15,7 @@ private:
 	bool m_is_swinging = false;
 	bool m_is_last_swing = false;
 	bool m_is_facing_left;
-	
-	
-	
+	bool m_fly=true;
 
 public:
 	EntityPlayer();
@@ -33,6 +31,9 @@ public:
 
 	void save(nd::NBT& src) override;
 	void load(nd::NBT& src) override;
+
+	void setFly(bool f) { m_fly = f; }
+	bool isFlying() const { return m_fly; }
 };
 enum MouseState
 {

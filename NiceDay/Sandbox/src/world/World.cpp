@@ -10,6 +10,8 @@
 #include "entity/EntityRegistry.h"
 #include <filesystem>
 
+#include "entity/EntityPlayer.h"
+
 using namespace nd;
 
 #define CHUNK_NOT_EXIST -1
@@ -52,22 +54,41 @@ World::~World()
 {
 	for (auto& c : m_chunks)
 		delete c.second;
+	for (auto& p : m_players)
+		delete p.second;
 }
 
 
 void World::onUpdate()
 {
-	tick();
-	/*if (!taskActive && !loadQueue.empty())
-	{
-		taskActive = true;
-		genChunks(loadQueue.front());
-		loadQueue.pop();
-	}*/
+	for (auto& p : m_players)
+		p.second->update(*this);
 }
 
-void World::tick()
+void World::createPlayer(int sessionId)
 {
+	if (m_players.find(sessionId) != m_players.end())
+		return;
+	auto pl = new EntityPlayer();
+	pl->getPosition() = { 0,0 };
+	pl->m_id = sessionId;
+	m_players[sessionId] = pl;
+}
+
+void World::destroyPlayer(int sessionId)
+{
+	if (m_players.find(sessionId) == m_players.end())
+		return;
+	delete m_players[sessionId];
+	m_players.erase(m_players.find(sessionId));
+}
+
+EntityPlayer* World::getPlayer(int sessionId)
+{
+	auto i = m_players.find(sessionId);
+	if (i == m_players.end())
+		return nullptr;
+	return i->second;
 }
 
 

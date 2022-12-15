@@ -27,6 +27,10 @@ public class Timeout {
         public boolean isTimeout(){
             return nowTime()-time>timeout && enabled;
         }
+
+        public boolean isRunning() {
+            return enabled;
+        }
     }
 
 

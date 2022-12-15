@@ -20,5 +20,9 @@ namespace server_const
 	constexpr int LOBBY_PORT = 1234;
 
 	// player kicked if no response
-	constexpr size_t PLAYER_SERVER_TIMEOUT=10005000;
+	//constexpr size_t PLAYER_SERVER_TIMEOUT=2000;
+	constexpr size_t PLAYER_SERVER_TIMEOUT=1000000;
+
+	constexpr int MAX_PLAYER_NAME_LENGTH = 11;
+	constexpr int MIN_PLAYER_NAME_LENGTH = 3;
 }

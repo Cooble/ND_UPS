@@ -44,6 +44,7 @@ public class Effect {
         s_shader = Shader.Lib.getOrLoad("res/shaders/TextureQuad.shader");
         s_shader.bind();
         s_shader.setUniformMat4("u_transform", new Matrix4f().identity());
+        s_shader.setUniformMat4("u_transform_uv", new Matrix4f().identity());
         s_shader.unbind();
     }
 

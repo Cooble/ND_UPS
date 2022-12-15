@@ -1,9 +1,8 @@
-package cz.cooble.ndc.world;
+package cz.cooble.ndc.net.prot;
 
-import cz.cooble.ndc.net.NetBuffer;
 import cz.cooble.ndc.net.NetReader;
 import cz.cooble.ndc.net.Prot;
-import cz.cooble.ndc.net.SessionProtocol;
+import cz.cooble.ndc.net.prot.SessionProtocol;
 import cz.cooble.ndc.test.NetWriter;
 
 public class CommandProtocol extends SessionProtocol {
@@ -13,7 +12,10 @@ public class CommandProtocol extends SessionProtocol {
     public CommandProtocol(){
         this.action= Prot.Command;
     }
-    public CommandProtocol(String message){this.message=message;}
+    public CommandProtocol(String message){
+        this.message=message;
+        this.action= Prot.Command;
+    }
 
     @Override
     public void serialize(NetWriter b) {

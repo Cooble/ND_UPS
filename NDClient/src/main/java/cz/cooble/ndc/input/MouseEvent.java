@@ -20,6 +20,6 @@ public class MouseEvent extends Event {
         location.y = screenHeight - 1 - location.y;
     }
 
-    float getX() { return location.x; }
-    float getY() { return location.y; }
+    public float getX() { return location.x; }
+    public float getY() { return location.y; }
 }

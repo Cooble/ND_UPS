@@ -6,8 +6,10 @@
 #include "world/entity/WorldEntity.h"
 #include "world/WorldTime.h"
 #include "core/NBT.h"
+#include "net/net_iterator.h"
 
 
+class EntityPlayer;
 class IChunkProvider;
 
 constexpr int DYNAMIC_ID_ENTITY_MANAGER = std::numeric_limits<int>::max() - 0;
@@ -99,7 +101,7 @@ public:
 	};
 
 private:
-	nd::defaultable_map<ChunkID, Chunk*,nullptr> m_chunks;
+	nd::defaultable_map<ChunkID, Chunk*, nullptr> m_chunks;
 	IChunkProvider* m_chunk_provider;
 
 	WorldInfo m_info;
@@ -111,6 +113,7 @@ private:
 	// needs to be created outside world and set
 	nd::DynamicSaver m_nbt_saver;
 
+	std::unordered_map<int, EntityPlayer*> m_players;
 
 private:
 	void init();
@@ -120,7 +123,8 @@ private:
 
 	bool isValidLocation(float wx, float wy) const
 	{
-		return !((wx) < 0 || (wy) < 0 || (wx) >= getInfo().chunk_width * WORLD_CHUNK_SIZE || (wy) >= getInfo().chunk_height * WORLD_CHUNK_SIZE);
+		return !((wx) < 0 || (wy) < 0 || (wx) >= getInfo().chunk_width * WORLD_CHUNK_SIZE || (wy) >= getInfo().
+			chunk_height * WORLD_CHUNK_SIZE);
 	}
 
 public:
@@ -128,11 +132,15 @@ public:
 	~World();
 
 	void onUpdate();
-	void tick();
+
+	void createPlayer(int sessionId);
+	void destroyPlayer(int sessionId);
+	EntityPlayer* getPlayer(int sessionId);
+
 
 	bool isBlockValid(int x, int y) const
 	{
-		return x >= 0 && y >= 0 && x < getInfo().chunk_width* WORLD_CHUNK_SIZE&& y < getInfo().chunk_height*
+		return x >= 0 && y >= 0 && x < getInfo().chunk_width * WORLD_CHUNK_SIZE && y < getInfo().chunk_height *
 			WORLD_CHUNK_SIZE;
 	}
 
@@ -143,7 +151,7 @@ public:
 
 	bool isChunkValid(half_int chunkid) const
 	{
-		return chunkid.x >= 0 && chunkid.x < getInfo().chunk_width&& chunkid.y >= 0 && chunkid.y < getInfo().
+		return chunkid.x >= 0 && chunkid.x < getInfo().chunk_width && chunkid.y >= 0 && chunkid.y < getInfo().
 			chunk_height;
 	}
 
@@ -199,6 +207,7 @@ public:
 		auto b = getBlockM(x, y);
 		return b == nullptr || b->isAir();
 	}
+
 	//return is wall at coords is air or shared or true if outside the map
 	bool isWallFree(int x, int y)
 	{
@@ -220,7 +229,6 @@ public:
 	const WorldInfo& getInfo() const { return m_info; };
 	const std::string& getFilePath() const { return m_file_path; }
 	auto& modifyInfo() { return m_info; }
-	
+
 	//==============SERIALIZATION============================
 };
-

@@ -281,12 +281,11 @@ void LobbyServerLayer::onInvitation(nd::net::Message& m)
 	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
 
 	auto adr = m.address.toString();
-	playerHeader.server = m.address.toString();
+	//send same ip as lobby server is in, works only if other servers are localhost
+	playerHeader.server = Address(m_address.ip(), m.address.port()).toString();
 
 	NetWriter(m.buffer).put(playerHeader);
-	//m.address = playerInfo.address;
-	// use ip address specified in settings
-	m.address = Address(m_address.ip(),m.address.port());
+	m.address = playerInfo.address;
 	nd::net::send(m_socket, m);
 }
 

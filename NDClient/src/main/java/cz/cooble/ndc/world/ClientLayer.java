@@ -231,6 +231,7 @@ public class ClientLayer extends Layer {
         serverAddress = Net.Address.build(a.server_name);
         sendInvitationACK(m);
         t.stop(TM_INV_REQ);
+        System.out.println("Invitation from lobby received");
     }
 
     private void onSessionCreated(Message m) {

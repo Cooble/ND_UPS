@@ -42,6 +42,11 @@ public class World {
             m_players.put(name, new Player(name));
         return m_players.get(name);
     }
+    public Player getPlayer(String name) {
+        if (!m_players.containsKey(name))
+            return null;
+        return m_players.get(name);
+    }
 
     public void removePlayer(String name) {
         m_players.remove(name);

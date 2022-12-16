@@ -7,14 +7,14 @@ constexpr uint64_t TIMEOUT = 0;
 
 void PacketHeader::flipToHost()
 {
-	*(u_long*)&action = ntohl(action);
-	*(u_long*)&connection_id = ntohl(connection_id);
+	//*(u_long*)&action = ntohl(action);
+	//*(u_long*)&connection_id = ntohl(connection_id);
 }
 
 void PacketHeader::flipToNet()
 {
-	*(u_long*)&action = htonl(action);
-	*(u_long*)&connection_id = htonl(connection_id);
+	//*(u_long*)&action = htonl(action);
+	//*(u_long*)&connection_id = htonl(connection_id);
 }
 
 int Multiplayer::getFreeID()

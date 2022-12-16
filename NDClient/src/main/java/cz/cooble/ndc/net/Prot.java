@@ -43,7 +43,9 @@ public enum Prot {
     BlockModify,
     BlockAck,
     PlayersMoved,
-    PlayerMoves;
+    PlayerMoves,
+
+    PlayerState;
 }
 
 

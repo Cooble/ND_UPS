@@ -167,7 +167,11 @@ NetResponseFlags_ closeSocket(Socket& s)
 		return NetResponseFlags_Error;
 	}
 	s_sockets.erase(s_sockets.begin() + socketid);
+#ifdef ND_PLATFORM_WINDOWS
+	closesocket(s.m_sock);
+#else
 	close(s.m_sock);
+#endif
 	return NetResponseFlags_Success;
 }
 
@@ -194,7 +198,7 @@ NetResponseFlags_ receive(const Socket& socket, Message& message)
 
 NetResponseFlags_ send(const Socket& s, const Message& m)
 {
-	if (sendto(s.m_sock, m.buffer.data(), m.buffer.size(), 0, (sockaddr*)&m.address.src,
+	if (sendto(s.m_sock, m.buffer.data(), m.buffer.size(), 0, (const sockaddr*)&m.address.src,
 	           sizeof(m.address.src)) == -1)
 	{
 		ASSERT(false, "Error during sending to address {}", m.address.toString());

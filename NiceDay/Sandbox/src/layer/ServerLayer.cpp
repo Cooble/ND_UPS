@@ -369,34 +369,61 @@ void ServerLayer::onInvACK(nd::net::Message& m)
 	// invitation id does not match
 	if (h.session_id != info.session_id)
 	{
-		ND_WARN("InvACK: session ids for player {} do not match (server:{},client:{})", h.player, info.session_id,
-		        h.session_id);
+		ND_WARN("InvACK: session ids for player {} do not match (server:{},client:{})", h.player, info.session_id,h.session_id);
 		return;
 	}
-
-	if (!info.isValid)
-	{
-		//create tcp tunnel
-		m_tunnels.try_emplace(info.session_id, m_socket, m.address, info.session_id, 5000);
-		ND_TRACE("Opening TCP tunnel to the player {}", h.player);
-		m_world->createPlayer(info.session_id);
-	}
-
-	// mark player state (re)verified
-	info.address = m.address;
-	info.isValid = true;
 	info.updateLife();
-	ND_INFO("InvACK: Client: {} (re)obtained session ID: {}", m.address.toString(), info.session_id);
+	info.address = m.address;
+	if (!info.isValid)
+		onPlayerConnected(m, info);
 
 	h.action = Prot::SessionCreated;
 	h.session_id = info.session_id;
-
 	NetWriter(m.buffer).put(h);
 	send(m_socket, m);
+	ND_INFO("InvACK: Client: {} (re)obtained session ID: {}", m.address.toString(), info.session_id);
 	ND_TRACE("InvACK: Sending SessionCreated to {} on {}", h.player, m.address.toString());
+}
 
+void ServerLayer::onPlayerConnected(nd::net::Message& m, PlayerInfo& info)
+{
+	info.isValid = true;
+
+	//create tcp tunnel
+	m_tunnels.try_emplace(info.session_id, m_socket, m.address, info.session_id, 5000);
+	ND_TRACE("Opening TCP tunnel to the player {}", info.name);
+	m_world->createPlayer(info.session_id);
+
+	// Send player state change to all players,
+	// once again we are sending flying instead of connect, just to include more information
+	PlayerState changeState;
+	changeState.value = m_world->getPlayer(info.session_id)->isFlying();
+	changeState.type = PlayerState::Fly;
+	changeState.name = info.name;
+	NetWriter(m.buffer).put(changeState);
+	broadcastTCPMessage(m);
+
+	// send states of all connected players to player.
+	// we are sending fly instead of connect, because if fly is received, player must be already connected
+	auto& tunnel = m_tunnels.find(info.session_id)->second;
+	for(auto&[session,in]:m_player_book)
+	{
+		if(!in.isValid)
+			continue;
+
+		auto p = m_world->getPlayer(session);
+		changeState.value = p->isFlying();
+		changeState.type = PlayerState::Fly;
+		changeState.name = in.name;
+		NetWriter(m.buffer).put(changeState);
+		tunnel.write(m);
+		ND_TRACE("Sending player state {} being {} to {}", in.name, p->isFlying(), info.name);
+	}
+
+	// send greeting to player
 	sendCommand(m, info.session_id, "server", "Hello " + info.name + "! Welcome to the server " + m_name);
-	broadcastCommand(m, "server", "A wild " + info.name + " has appeared!", h.session_id);
+	// send command info to all players
+	broadcastCommand(m, "server", "A wild " + info.name + " has appeared!", info.session_id);
 }
 
 void ServerLayer::onChunkReq(nd::net::Message& m)
@@ -463,9 +490,18 @@ void ServerLayer::onCommand(nd::net::Message& m)
 		}
 		else if (cmd == "fly")
 		{
-			m_world->getPlayer(h.session_id)->setFly(!m_world->getPlayer(h.session_id)->isFlying());
-			ND_INFO("Command: Toggled fly for {} to {}", m_player_book[h.session_id].name,
-			        m_world->getPlayer(h.session_id)->isFlying());
+			auto pl = m_world->getPlayer(h.session_id);
+
+			pl->setFly(!pl->isFlying());
+			ND_INFO("Command: Toggled fly for {} to {}", m_player_book[h.session_id].name,pl->isFlying());
+
+			// dont forget to tell all clients that this client is flying
+			PlayerState changeState;
+			changeState.value = pl->isFlying();
+			changeState.type = PlayerState::Fly;
+			changeState.name = m_player_book[h.session_id].name;
+			NetWriter(m.buffer).put(changeState);
+			broadcastTCPMessage(m);
 		}
 		else if (nd::SUtil::startsWith(cmd, "echo "))
 		{
@@ -595,23 +631,41 @@ void ServerLayer::scheduleStop(bool exit_or_restart)
 	m_death_counter = DEATH_COUNTER_TICKS;
 }
 
-void ServerLayer::disconnectClient(nd::net::Message& message, SessionID id, std::string_view reason, bool sendMessage)
+void ServerLayer::disconnectClient(nd::net::Message& m, SessionID id, std::string_view reason, bool sendMessage)
 {
 	if (!m_player_book.contains(id))
 		return;
 	ND_INFO("Disconnecting:  {} with session {}", m_player_book[id].name, id);
 
+	// Inform all players that this player goes down
+	if (m_player_book[id].isValid)
+	{
+		// state
+		PlayerState changeState;
+		changeState.value = false;
+		changeState.type = PlayerState::Connect;
+		changeState.name = m_player_book[id].name;
+		NetWriter(m.buffer).put(changeState);
+		broadcastTCPMessage(m);
+
+		// chat message
+		std::string disconnectMessage = "Player " + m_player_book[id].name + " has departed for a better place. May he rest in peace";
+		broadcastCommand(m, "server", disconnectMessage, id);
+	}
+
+	// send client disconnect packet
 	if (sendMessage && m_player_book[id].isValid)
 	{
 		ControlProtocol c;
 		c.session_id = id;
 		c.message = reason;
-		NetWriter(message.buffer).put(c);
-		message.address = m_player_book[id].address;
-		send(m_socket, message);
+		NetWriter(m.buffer).put(c);
+		m.address = m_player_book[id].address;
+		send(m_socket, m);
 		ND_TRACE("Disconnecting: sending disconnect packet");
 	}
 
+	// remove that disgusting player from our precious memory
 	auto iter = m_player_book.find(id);
 	m_session_ids.erase(m_session_ids.find(iter->second.name));
 	if (m_tunnels.find(id) != m_tunnels.end())
@@ -812,4 +866,15 @@ int ServerLayer::playerCollisionCount()
 		out += PhysEntity::findBlockIntersections(*m_world, p->getPosition(), p->getCollisionBox());
 	}
 	return out;
+}
+
+void ServerLayer::broadcastTCPMessage(nd::net::Message& m)
+{
+	for (auto& [session, in] : m_player_book)
+	{
+		if (!in.isValid)
+			continue;
+		if (!m_tunnels.find(session)->second.write(m))
+			ND_WARN("Cannot send tcp message to {}, buffer full", in.name);
+	}
 }

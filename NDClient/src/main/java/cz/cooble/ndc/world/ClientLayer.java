@@ -40,7 +40,7 @@ public class ClientLayer extends Layer {
     private Timeout t = new Timeout();
 
     //private Timeout.Pocket serverTimeout = new Timeout.Pocket(2000);
-    private Timeout.Pocket serverTimeout = new Timeout.Pocket(1000000);
+    private Timeout.Pocket serverTimeout = new Timeout.Pocket(2000);
 
     private Set<Integer> pendingPieces;
 
@@ -152,11 +152,12 @@ public class ClientLayer extends Layer {
 
         t.start(TM_INVITATION_ACK);
     }
+
     private void sendMove(Message m) {
         m.address = serverAddress;
         for (var e : playerMoveEvents) {
             e.serialize(new NetWriter(m.buffer));
-            System.out.println("[Sending_Move] eventId:" + e.event_id + " pos:" + e.pos.toString() + " input:" + e.inputs.toString());
+            //System.out.println("[Sending_Move] eventId:" + e.event_id + " pos:" + e.pos.toString() + " input:" + e.inputs.toString());
             socket.send(m);
         }
         playerMoveEvents.clear();
@@ -234,6 +235,12 @@ public class ClientLayer extends Layer {
         System.out.println("Invitation from lobby received");
     }
 
+    private void onPlayerState(Message m) {
+        var a = new PlayerState();
+        a.deserialize(new NetReader(m.buffer));
+        onPlayerState.accept(a);
+    }
+
     private void onSessionCreated(Message m) {
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
@@ -256,6 +263,12 @@ public class ClientLayer extends Layer {
         this.onDisconnect = onDisconnect;
     }
 
+    private Consumer<PlayerState> onPlayerState;
+
+    public void setOnPlayerState(Consumer<PlayerState> onPlayerState) {
+        this.onPlayerState = onPlayerState;
+    }
+
     private void onQuitReceived(Message m) {
         var a = new ControlProtocol();
         a.deserialize(new NetReader(m.buffer));
@@ -275,20 +288,30 @@ public class ClientLayer extends Layer {
         var a = new ProtocolHeader();
         a.deserialize(new NetReader(m.buffer));
 
-        if (a.action == Prot.Invitation) {
-            onInvitation(m);
-        } else if (a.action == Prot.SessionCreated) {
-            onSessionCreated(m);
-        } else if (a.action == Prot.ChunkACK) {
-            onChunkACK(m);
-        } else if (a.action == Prot.Command) {
-            onCommandReceived(m);
-        } else if (a.action == Prot.Quit) {
-            onQuitReceived(m);
-        } else if (a.action == Prot.BlockModify || a.action == Prot.BlockAck) {
-            onBlockPacket(m);
-        } else if (a.action == Prot.PlayersMoved) {
-            onMoved(m);
+
+        if (!isSessionCreated) {
+            // packets allowed only before session is created
+            if (a.action == Prot.Invitation) {
+                onInvitation(m);
+            } else if (a.action == Prot.SessionCreated) {
+                onSessionCreated(m);
+            }
+        }
+        else {
+            //packets allowed only after session is created
+            if (a.action == Prot.ChunkACK) {
+                onChunkACK(m);
+            } else if (a.action == Prot.Command) {
+                onCommandReceived(m);
+            } else if (a.action == Prot.Quit) {
+                onQuitReceived(m);
+            } else if (a.action == Prot.BlockModify || a.action == Prot.BlockAck) {
+                onBlockPacket(m);
+            } else if (a.action == Prot.PlayersMoved) {
+                onMoved(m);
+            } else if (a.action == Prot.PlayerState) {
+                onPlayerState(m);
+            }
         }
     }
 
@@ -298,12 +321,12 @@ public class ClientLayer extends Layer {
         PlayersMoved moved = new PlayersMoved();
         moved.deserialize(new NetReader(m.buffer));
         playersMoved.add(moved);
-        System.out.println("[Receiving_Moves]:");
+       /* System.out.println("[Receiving_Moves]:");
         for (var e : moved.moves) {
             System.out.println("\t-> eventid:" + e.event_id + " pos:" + e.targetPos);
             for (var o : e.inputs)
                 System.out.println("\t\t* " + o.toString());
-        }
+        }*/
     }
 
     Consumer<ProtocolHeader> onBlockEvents;
@@ -360,10 +383,12 @@ public class ClientLayer extends Layer {
             }
         while (tunnel != null && tunnel.read(m)) {
             try {
+                System.out.println("received tcp: "+new String(m.buffer.data()));
                 onPacketReceived(m);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 e.printStackTrace();
-                errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
+                errorMessage = "Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println(errorMessage);
                 errorMessage = e.toString();
             }

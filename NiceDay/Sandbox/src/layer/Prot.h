@@ -49,7 +49,9 @@ enum class Prot :int
 	BlockModify,
 	BlockAck,
 	PlayersMoved,
-	PlayerMoves
+	PlayerMoves,
+
+	PlayerState,
 };
 
 inline const char* ProtStrings[128] = {
@@ -74,6 +76,7 @@ inline const char* ProtStrings[128] = {
 	"BlockAck		",
 	"PlayersMoved	",
 	"PlayerMoves	",
+	"PlayerState	",
 
 };
 
@@ -297,12 +300,11 @@ struct Inputs : nd::net::Serializable
 		s += (char)('0' + right);
 		return s;
 	}
+
 	void serialize(nd::net::NetWriter& writer) const
 	{
 		writer.put(toString());
 	}
-
-	
 };
 
 struct PlayerMoves : SessionProtocol
@@ -334,7 +336,7 @@ struct PlayerMoves : SessionProtocol
 	}
 };
 
-struct PlayerMoved:nd::net::Serializable
+struct PlayerMoved : nd::net::Serializable
 {
 	// player
 	std::string name;
@@ -345,7 +347,7 @@ struct PlayerMoved:nd::net::Serializable
 	// final velocity that the player got to
 	glm::vec2 targetVelocity;
 	// latest event move id from client
-	int event_id=0;
+	int event_id = 0;
 
 	bool deserialize(nd::net::NetReader& reader)
 	{
@@ -355,7 +357,6 @@ struct PlayerMoved:nd::net::Serializable
 			reader.get(targetPos) &&
 			reader.get(targetVelocity) &&
 			reader.get(event_id);
-	
 	}
 
 	void serialize(nd::net::NetWriter& writer) const
@@ -368,7 +369,7 @@ struct PlayerMoved:nd::net::Serializable
 	}
 };
 
-struct PlayersMoved:ProtocolHeader
+struct PlayersMoved : ProtocolHeader
 {
 	std::vector<PlayerMoved> moves;
 
@@ -387,5 +388,37 @@ struct PlayersMoved:ProtocolHeader
 		ProtocolHeader::serialize(writer);
 		writer.put(moves);
 	}
+};
 
+struct PlayerState : ProtocolHeader
+{
+	std::string name;
+	enum:int
+	{
+		Fly,
+		Connect
+	} type;
+
+	bool value;
+	PlayerState() { action = Prot::PlayerState; }
+
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!ProtocolHeader::deserialize(reader))
+			return false;
+
+		return
+			reader.get(name) &&
+			reader.get(*(int*)&type) &&
+			reader.get(value);
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		ProtocolHeader::serialize(writer);
+		writer.put(name);
+		writer.put((int)type);
+		writer.put(value);
+	}
 };

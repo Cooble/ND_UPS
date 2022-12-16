@@ -26,6 +26,7 @@ public class NetBuffer {
         var lastPos = buffer.position();
         buffer.position(offset);
         var lastLimit = buffer.limit();
+        buffer.limit(offset+len);
         var out = buffer.slice();
         buffer.position(lastPos);
         buffer.limit(lastLimit);

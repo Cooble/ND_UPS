@@ -138,6 +138,7 @@ public:
 	// ON MESSAGE RECEIVED, called when message received
 	void onInvReq(nd::net::Message& message);
 	void onInvACK(nd::net::Message& message);
+	void onPlayerConnected(nd::net::Message& m, PlayerInfo& info);
 	void onChunkReq(nd::net::Message& message);
 	void onCommand(nd::net::Message& message);
 	void onQuit(nd::net::Message& message);
@@ -167,6 +168,7 @@ public:
 	void applyMove(EntityPlayer& player, Inputs& inputs);
 	void sendMoves(nd::net::Message& m);
 	int playerCollisionCount();
+	void broadcastTCPMessage(nd::net::Message& m);
 
 
 private:

@@ -33,6 +33,7 @@ public class Player extends PhysEntity implements BatchRenderable2D {
     float m_last_pose = 0;
     int m_animation_var = 0;
     String m_name;
+    boolean isFlying;
 
     static SpriteSheetResource res = new SpriteSheetResource(new Texture(
             new Texture.Info("res/images/player3.png")
@@ -74,7 +75,7 @@ public class Player extends PhysEntity implements BatchRenderable2D {
     public void update(World w) {
         var lastPos = new Vector2f(m_pos);
         var lastFacingLeft = m_is_facing_left;
-        if (!Stats.move_through_blocks_enable)
+        if (!isFlying)
             computePhysics(w);
         else {
             float len = m_velocity.length();
@@ -109,10 +110,18 @@ public class Player extends PhysEntity implements BatchRenderable2D {
         m_pose += Math.abs(lastPos.x - m_pos.x);
         if (m_pose - m_last_pose > animationBlocksPerFrame) {
             m_pose = m_last_pose;
-            if (!w.isAir((int) m_pos.x, (int) (m_pos.y - 1.f)) || lastFacingLeft != m_is_facing_left || Stats.move_through_blocks_enable)
+            if (!w.isAir((int) m_pos.x, (int) (m_pos.y - 1.f)) || lastFacingLeft != m_is_facing_left || isFlying)
                 //no walking while jumping through air
                 m_animation.nextFrame();
         }
+    }
+
+    public boolean isFlying() {
+        return isFlying;
+    }
+
+    public void setFlying(boolean flying) {
+        isFlying = flying;
     }
 
     @Override

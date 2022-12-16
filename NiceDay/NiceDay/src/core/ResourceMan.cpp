@@ -8,7 +8,7 @@ std::string ResourceMan::s_resPathFolder;
 void ResourceMan::init()
 {
 	auto currentDir = std::filesystem::path(FUtil::getExecutableFolderPath());
-	ND_INFO("Current path {}", currentDir.c_str());
+	ND_INFO("Current path {}", currentDir.generic_u8string());
 	//LOOK 3 STEPS UP for /res
 	for (int i = 0; i < 6; ++i)
 	{

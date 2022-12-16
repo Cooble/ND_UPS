@@ -81,6 +81,7 @@ public class WorldLayer extends Layer {
             guiLayer.openInfoScreen("Server disconnected.\nReason:\n" + s, () -> guiLayer.openConnectScreen(this::onIpEntered));
         });
         client.setOnBlockEventsCallback(this::onBlockPacket);
+        client.setOnPlayerState(this::onPlayerState);
     }
 
     @Override
@@ -208,6 +209,21 @@ public class WorldLayer extends Layer {
         cam.setPosition(player.getPosition());
     }
 
+    private void onPlayerState(PlayerState state) {
+        System.out.println("Player state change " + state.type.name() + " valu: " + state.value + " for player " + state.name);
+        if (state.type == PlayerState.Type.Fly) {
+            var p  = world.getPlayerOrNew(state.name);
+            if (p == null)
+                return;
+            p.setFlying(state.value);
+        } else if (state.type == PlayerState.Type.Connect) {
+            if (state.value) {
+                world.getPlayerOrNew(state.name);
+            } else
+                world.removePlayer(state.name);
+        }
+    }
+
     private void onPlayers(PlayersMoved p) {
         float THRESHOLD = 0.001f;
         //System.out.println("Moved Received");
@@ -242,10 +258,11 @@ public class WorldLayer extends Layer {
                         player.update(world);
                     }
                 }
-            }
-            else {
-                // foreign player
-                var pl = world.getPlayerOrNew(move.name);
+            } else {
+                // foreign player which should not even exist
+                var pl = world.getPlayer(move.name);
+                if (pl == null)
+                    continue;
 
                 // we are receiving new input, but we have not applied all previous ones-> set default starting position
                 if (pl.getHistory() != null && !pl.getHistory().inputs.isEmpty()) {
@@ -335,7 +352,7 @@ public class WorldLayer extends Layer {
         var istsunderBlock = !world.isAir((int) player.getPosition().x, (int) (player.getPosition().y - 1));
 
         //if (App.get().getWindow().isFocused()) {
-        if (Stats.move_through_blocks_enable) {
+        if (player.isFlying()) {
             velocity.x = 0;
             velocity.y = 0;
 
@@ -415,12 +432,6 @@ public class WorldLayer extends Layer {
             if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_T) {
                 console.openEditMode();
                 return;
-            }
-            if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_J) {
-
-                Stats.move_through_blocks_enable ^= true;
-                Stats.fly_enable ^= true;
-                System.out.println(Stats.fly_enable);
             }
             if (((KeyPressEvent) e).getFreshKeycode() == GLFW_KEY_ESCAPE) {
                 client.closeSession();

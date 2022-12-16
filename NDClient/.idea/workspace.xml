@@ -166,7 +166,7 @@
       <workItem from="1671007520031" duration="33742000" />
       <workItem from="1671193104841" duration="374000" />
       <workItem from="1671193860679" duration="650000" />
-      <workItem from="1671200411734" duration="3680000" />
+      <workItem from="1671200411734" duration="13079000" />
     </task>
     <servers />
   </component>
@@ -186,13 +186,6 @@
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/cz/cooble/ndc/world/player/PhysEntity.java</url>
-          <line>118</line>
-          <option name="timeStamp" value="48" />
-        </line-breakpoint>
-      </breakpoints>
       <default-breakpoints>
         <breakpoint enabled="true" type="java-exception">
           <properties>

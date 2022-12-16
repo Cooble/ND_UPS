@@ -284,7 +284,9 @@ void LobbyServerLayer::onInvitation(nd::net::Message& m)
 	playerHeader.server = m.address.toString();
 
 	NetWriter(m.buffer).put(playerHeader);
-	m.address = playerInfo.address;
+	//m.address = playerInfo.address;
+	// use ip address specified in settings
+	m.address = Address(m_address.ip(),m.address.port());
 	nd::net::send(m_socket, m);
 }
 

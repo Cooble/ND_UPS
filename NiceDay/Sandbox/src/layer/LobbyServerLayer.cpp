@@ -1,7 +1,5 @@
 ﻿#include "LobbyServerLayer.h"
 
-#include <WinSock2.h>
-
 #include "Prot.h"
 #include "ServerLayer.h"
 #include "server_constants.h"

@@ -1,5 +1,7 @@
-#pragma once
-//precompiled header file
+#ifndef NDPCH_GUARD
+#define NDPCH_GUARD//precompiled header file
+// Not using #pragma once here
+// see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=56549
 
 // preprocessor defines
 //
@@ -40,3 +42,6 @@
 //profiling
 #include "core/Scoper.h"
 #include "core/sids.h"
+
+#endif //NDPCH_GUARD
+

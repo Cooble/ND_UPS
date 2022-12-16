@@ -4,6 +4,10 @@
 #include "ResourceMan.h"
 #include <type_traits>
 
+#ifndef ND_PLATFORM_WINDOWS
+#include <signal.h>
+#endif
+
 namespace nd {
 template <class T>
 using Ref = std::shared_ptr<T>;
@@ -14,12 +18,20 @@ Ref<_Ty> MakeRef(_Types&&... _Args)
 	// make a shared_ptr
 	return std::make_shared<_Ty>(std::forward<_Types>(_Args)...);
 }
+#ifdef ND_PLATFORM_WINDOWS
+#define PORTABLE_BREAK()\
+	__debugbreak()
+#else
+#define PORTABLE_BREAK()\
+	raise(SIGTRAP)
+#endif
+
 
 //#ifdef ND_DEBUG
 #define ASSERT(cond,...) if(!(cond))\
 	{ND_ERROR("Assertion Failed: {}",#cond);\
 	ND_ERROR(__VA_ARGS__);\
-	__debugbreak();}
+	PORTABLE_BREAK();}
 //#else
 //#define ASSERT(cond,message) 
 //#endif

@@ -1,9 +1,7 @@
-﻿#include "C:/D/Uni/nd/ND_UPS/NiceDay/NiceDay/CMakeFiles/NiceDay.dir/Release/cmake_pch.hxx"
+﻿
 #include <ndpch.h>
 #include "TCPTunnel.h"
 //todo precompiled header bullshit
-
-#include <WinSock2.h>
 
 namespace nd::net
 {

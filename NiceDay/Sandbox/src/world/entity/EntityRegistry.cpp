@@ -34,7 +34,7 @@ const std::string& EntityRegistry::entityTypeToString(EntityType type) const
 	static std::string s = "invalidEntity";
 	return s;
 }
-
+EntityRegistry::EntityTemplate e(-1,nullptr,0,"INVALID");
 const EntityRegistry::EntityTemplate& EntityRegistry::getBucket(EntityType type) const
 {
 	for (auto& entity_bucket : m_entity_templates)
@@ -43,6 +43,7 @@ const EntityRegistry::EntityTemplate& EntityRegistry::getBucket(EntityType type)
 			return entity_bucket;
 	}
 	ASSERT(false, "Invalid EntityType");
+	return e;
 }
 
 EntityType EntityRegistry::getEntityType(const std::string& name)

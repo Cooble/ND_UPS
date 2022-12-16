@@ -15,11 +15,13 @@ namespace Phys {
 
 	inline uint64_t toInt64(float x, float y)
 	{
-		return *(uint64_t*)&glm::vec2(x, y);
+		glm::vec2 r(x, y);
+		return *(uint64_t*)&r;
 	}
 
 	inline uint64_t toInt64(const glm::vec2& v)
 	{
+
 		return *(uint64_t*)&v;
 	}
 

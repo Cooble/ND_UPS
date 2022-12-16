@@ -62,10 +62,18 @@ const std::string& FUtil::getExecutablePath()
 	static std::string out;
 	if (out.empty())
 	{
+#ifdef ND_PLATFORM_WINDOWS
 		WCHAR path[260];
 		GetModuleFileNameW(NULL, path, 260);
 		out = ws2s(std::wstring(path));
 		cleanPathString(out);
+#else
+		char result[PATH_MAX];
+		ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+		auto s = std::string(result, (count > 0) ? count : 0);
+		cleanPathString(s);
+#endif
+
 	}
 	return out;
 }
@@ -82,7 +90,11 @@ std::vector<std::string> FUtil::fileList(std::string_view folder_path, FileSearc
 	{
 		for (const auto& entry : std::filesystem::directory_iterator(folder_path))
 		{
+#ifdef ND_PLATFORM_WINDOWS
 			std::string s = ws2s(std::wstring(entry.path().c_str()));
+#else
+			std::string s = entry.path().c_str();
+#endif
 			if (entry.is_directory() && flags & FileSearchFlags_OnlyFiles)
 			{
 			}
@@ -116,7 +128,11 @@ std::vector<std::string> FUtil::fileList(std::string_view folder_path, FileSearc
 	{
 		for (const auto& entry : std::filesystem::recursive_directory_iterator(folder_path))
 		{
+#ifdef ND_PLATFORM_WINDOWS
 			std::string s = ws2s(std::wstring(entry.path().c_str()));
+#else
+			std::string s = entry.path().c_str();
+#endif
 			if (entry.is_directory() && flags & FileSearchFlags_OnlyFiles)
 			{
 			}

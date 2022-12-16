@@ -164,7 +164,8 @@ void World::genWorld()
 		{
 			for (int y = 0; y < WORLD_CHUNK_SIZE; ++y)
 			{
-				setBlockWithNotify(x + chunkOffsetX, y + chunkOffsetY, BlockStruct(ids[(i++) % 5]));
+				auto b = BlockStruct(ids[(i++) % 5]);
+				setBlockWithNotify(x + chunkOffsetX, y + chunkOffsetY,b);
 				setWallWithNotify(x + chunkOffsetX, y + chunkOffsetY, walls[i / 5 % 4]);
 			}
 		}

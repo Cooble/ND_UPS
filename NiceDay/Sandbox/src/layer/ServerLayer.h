@@ -55,7 +55,7 @@ public:
 		bool being_loaded = false;
 		std::vector<char> buffer;
 		std::vector<char> pending_pieces;
-		bool makeVacant() { c_id = -1; }
+		void makeVacant() { c_id = -1; }
 		bool vacant() const { return c_id == -1; }
 		bool pending() const { return !pending_pieces.empty(); }
 

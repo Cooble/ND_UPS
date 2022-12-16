@@ -1,6 +1,11 @@
 #pragma once
 #include "ndpch.h"
+#ifdef ND_PLATFORM_WINDOWS
 #include <ws2def.h>
+#else
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#endif
 
 
 enum NetResponseFlags_
@@ -12,224 +17,232 @@ enum NetResponseFlags_
 
 namespace nd::net
 {
-	typedef int SocketID;
+typedef int SocketID;
 
-	struct CreateSocketInfo
+struct CreateSocketInfo
+{
+	uint32_t port;
+	bool async;
+};
+
+struct Address
+{
+	sockaddr_in src;
+	Address() = default;
+	Address(const std::string& ip, int port);
+	Address(unsigned long ip, int port);
+	bool isValid() const;
+	static Address build(const std::string& ipWithPort);
+	std::string toString() const;
+	int port() const;
+	std::string ip() const;
+
+	bool operator==(const Address& address) const
 	{
-		uint32_t port;
-		bool async;
-	};
+		return toString() == address.toString();
+	}
 
-	struct Address
+	bool operator!=(const Address& address) const { return !this->operator==(address); }
+};
+
+struct Socket
+{
+	SocketID m_sock;
+	Address m_address;
+
+	bool operator==(std::vector<Socket>::const_reference socket) const
 	{
-		sockaddr_in src;
-		Address() = default;
-		Address(const std::string& ip, int port);
-		Address(unsigned long ip, int port);
-		bool isValid() const;
-		static Address build(const std::string& ipWithPort);
-		std::string toString() const;
-		int port() const;
-		std::string ip() const;
-		bool operator==(const Address& address) const
-		{
-			return toString() == address.toString();
-		}
+		// todo make proper equal
+		return m_sock == socket.m_sock;
+	}
+};
 
-		bool operator!=(const Address& address) const { return !this->operator==(address); }
-	};
 
-	struct Socket
+struct Buffer
+{
+	std::vector<char> buff;
+	int siz = 0;
+
+	void reserve(size_t size)
 	{
-		SocketID m_sock;
-		Address m_address;
+		if (buff.size() < size)
+			buff.resize(size);
+		siz = 0;
+	}
 
-		bool operator==(std::vector<Socket>::const_reference socket) const
-		{
-			// todo make proper equal
-			return m_sock == socket.m_sock;
-		}
-	};
-
-
-	struct Buffer
+	void setSize(size_t size)
 	{
-		std::vector<char> buff;
-		int siz = 0;
+		ASSERT(size <= capacity(), "invalid size");
+		siz = size;
+	}
 
-		void reserve(size_t size)
-		{
-			if(buff.size()<size)
-				buff.resize(size);
-			siz = 0;
-		}
+	auto data() { return buff.data(); }
+	auto data() const { return buff.data(); }
+	int size() const { return siz; }
+	int capacity() const { return (int)buff.size(); }
+};
 
-		void setSize(size_t size)
-		{
-			ASSERT(size <= capacity(), "invalid size");
-			siz = size;
-		}
+struct BufferWriter
+{
+	Buffer& b;
+	int pointer;
+	bool expand;
 
-		auto data() { return buff.data(); }
-		auto data() const { return buff.data(); }
-		int size() const { return siz; }
-		int capacity() const { return (int)buff.size(); }
-	};
-
-	struct BufferWriter
+	BufferWriter(Buffer& b, bool append = true, bool expand = true): b(b), pointer(b.size()), expand(expand)
 	{
-		Buffer& b;
-		int pointer;
-		bool expand;
-
-		BufferWriter(Buffer& b, bool append = true, bool expand = true): b(b), pointer(b.size()), expand(expand)
+		if (!append)
 		{
-			if (!append)
-			{
-				b.setSize(0);
-				pointer = 0;
-			}
+			b.setSize(0);
+			pointer = 0;
 		}
+	}
 
-		template <typename T>
-		void write(const T* t, int count)
-		{
-			const int sizeOfT = count * sizeof(T);
-
-			ASSERT(expand || pointer + sizeOfT <= b.capacity(), "not enough space");
-			if (expand && pointer + sizeOfT > b.capacity())
-				b.reserve((pointer + sizeOfT) * 2);
-
-			auto p = b.data() + pointer;
-
-			memcpy(p, t, sizeOfT);
-
-			pointer += sizeOfT;
-			b.setSize(pointer);
-		}
-
-		template <typename T>
-		void write(const T& t)
-		{
-			if constexpr (std::is_same_v<std::remove_const_t<T>, char*>)
-			{
-				write(std::to_string(t));
-				return;
-			}
-			ASSERT(expand || pointer + sizeof(T) <= b.capacity(), "not enough space");
-			if (expand && pointer + sizeof(T) > b.capacity())
-				b.reserve((pointer + sizeof(T)) * 2);
-
-			auto p = b.data() + pointer;
-
-			memcpy(p, &t, sizeof(T));
-
-			pointer += sizeof(T);
-			b.setSize(pointer);
-		}
-
-		template <>
-		void write<std::string>(const std::string& t)
-		{
-			ASSERT(expand || pointer + t.size() <= b.capacity(), "not enough space");
-			if (expand && pointer + t.size() > b.capacity())
-				b.reserve((pointer + t.size()) * 2);
-
-			auto p = b.data() + pointer;
-
-			memcpy(p, t.c_str(), t.size());
-			pointer += t.size();
-
-			if (pointer < b.capacity())
-				b.data()[pointer++] = '\0';
-
-			b.setSize(pointer);
-		}
-
-		template <>
-		void write<const char*>(const char* const& t)
-		{
-			write(std::string(t));
-		}
-	};
-
-	struct BufferReader
+	template <typename T>
+	void write(const T* t, int count)
 	{
-		Buffer& b;
-		int pointer;
+		const int sizeOfT = count * sizeof(T);
 
-		BufferReader(Buffer& b) : b(b), pointer(0)
+		ASSERT(expand || pointer + sizeOfT <= b.capacity(), "not enough space");
+		if (expand && pointer + sizeOfT > b.capacity())
+			b.reserve((pointer + sizeOfT) * 2);
+
+		auto p = b.data() + pointer;
+
+		memcpy(p, t, sizeOfT);
+
+		pointer += sizeOfT;
+		b.setSize(pointer);
+	}
+
+	template <typename T>
+	void write(const T& t)
+	{
+		if constexpr (std::is_same_v<std::remove_const_t<T>, char*>)
 		{
+			write(std::to_string(t));
+			return;
+		}
+		ASSERT(expand || pointer + sizeof(T) <= b.capacity(), "not enough space");
+		if (expand && pointer + sizeof(T) > b.capacity())
+			b.reserve((pointer + sizeof(T)) * 2);
+
+		auto p = b.data() + pointer;
+
+		memcpy(p, &t, sizeof(T));
+
+		pointer += sizeof(T);
+		b.setSize(pointer);
+	}
+};
+
+template <>
+inline void BufferWriter::write<std::string>(const std::string& t)
+{
+	ASSERT(expand || pointer + t.size() <= b.capacity(), "not enough space");
+	if (expand && pointer + t.size() > b.capacity())
+		b.reserve((pointer + t.size()) * 2);
+
+	auto p = b.data() + pointer;
+
+	memcpy(p, t.c_str(), t.size());
+	pointer += t.size();
+
+	if (pointer < b.capacity())
+		b.data()[pointer++] = '\0';
+
+	b.setSize(pointer);
+}
+
+template <>
+inline void BufferWriter::write<const char*>(const char* const& t)
+{
+	write(std::string(t));
+}
+
+
+struct BufferReader
+{
+	Buffer& b;
+	int pointer;
+
+	BufferReader(Buffer& b) : b(b), pointer(0)
+	{
+	}
+
+	template <typename T>
+	void read(T& t)
+	{
+		ASSERT(pointer + sizeof(T) <= b.size(), "not enough space");
+		memcpy(&t, b.data() + pointer, sizeof(T));
+
+		pointer += sizeof(T);
+	}
+
+	template <typename T>
+	T* tryRead()
+	{
+		if (pointer + sizeof(T) > b.size())
+			return nullptr;
+
+		auto out = reinterpret_cast<T*>(b.data() + pointer);
+		pointer += sizeof(T);
+		return out;
+	}
+
+private:
+	bool string_error;
+public:
+	// true if readString could not read another string
+	// empty string is not an error, no space in buffer is
+	bool isStringError() const { return string_error; }
+
+	std::string readStringUntilNull(int maxSize)
+	{
+		string_error = false;
+
+		if (maxSize == -1)
+			maxSize = std::numeric_limits<int>::max();
+
+		auto remaingSize = std::min(maxSize, b.size() - pointer);
+
+		if (remaingSize <= 0)
+		{
+			string_error = true;
+			return "";
 		}
 
-		template <typename T>
-		void read(T& t)
-		{
-			ASSERT(pointer + sizeof(T) <= b.size(), "not enough space");
-			memcpy(&t, b.data() + pointer, sizeof(T));
+		auto out = b.data() + pointer;
 
-			pointer += sizeof(T);
+		if (*out == '\0')
+		{
+			pointer++;
+			return "";
 		}
-
-		template <typename T>
-		T* tryRead()
-		{
-			if (pointer + sizeof(T) > b.size())
-				return nullptr;
-
-			auto out = reinterpret_cast<T*>(b.data() + pointer);
-			pointer += sizeof(T);
-			return out;
-		}
-	private:
-		bool string_error;
-	public:
-		// true if readString could not read another string
-		// empty string is not an error, no space in buffer is
-		bool isStringError() const { return string_error; }
-
-		std::string readStringUntilNull(int maxSize)
-		{
-			string_error = false;
-
-			if (maxSize == -1)
-				maxSize = std::numeric_limits<int>::max();
-
-			auto remaingSize = std::min(maxSize, b.size() - pointer);
-
-			if (remaingSize <= 0) {
-				string_error = true;
-				return "";
-			}
-
-			auto out = b.data() + pointer;
-
-			if (*out == '\0')
-			{
-				pointer++;
-				return "";
-			}
+#ifdef ND_WINDOWS
 			auto length = strnlen_s(b.data() + pointer, remaingSize);
+#else
+		auto length = strnlen(b.data() + pointer, remaingSize);
+#endif
 
-			pointer += length;
+		pointer += length;
 
-			//add one to discard null character as well
-			pointer += pointer < b.size() && *(b.data() + pointer) == '\0';
+		//add one to discard null character as well
+		pointer += pointer < b.size() && *(b.data() + pointer) == '\0';
 
-			return std::string(out, length);
-		}
-	};
+		return std::string(out, length);
+	}
+};
 
-	struct Message
-	{
-		Address address;
-		Buffer buffer;
-	};
+struct Message
+{
+	Address address;
+	Buffer buffer;
+};
 
-	NetResponseFlags_ init();
-	void deinit();
-	NetResponseFlags_ createSocket(Socket&, const CreateSocketInfo&);
-	NetResponseFlags_ closeSocket(Socket&);
-	NetResponseFlags_ receive(const Socket&, Message&);
-	NetResponseFlags_ send(const Socket&, const Message&);
+NetResponseFlags_ init();
+void deinit();
+NetResponseFlags_ createSocket(Socket&, const CreateSocketInfo&);
+NetResponseFlags_ closeSocket(Socket&);
+NetResponseFlags_ receive(const Socket&, Message&);
+NetResponseFlags_ send(const Socket&, const Message&);
 };

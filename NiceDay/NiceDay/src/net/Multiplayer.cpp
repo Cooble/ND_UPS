@@ -1,7 +1,5 @@
 ﻿#include "Multiplayer.h"
 
-#include <WinSock2.h>
-
 using namespace nd::net;
 
 //constexpr uint64_t TIMEOUT = 10000;
@@ -48,7 +46,7 @@ void Multiplayer::disconnectConnection(ConnectionID id)
 Multiplayer::Multiplayer(int maxConnections,int port)
 {
 	m_connections.resize(maxConnections);
-	ZeroMemory(m_connections.data(), maxConnections * sizeof(Connection));
+	memset(m_connections.data(), 0, maxConnections * sizeof(Connection));
 
 	CreateSocketInfo info = {};
 	info.async = true;

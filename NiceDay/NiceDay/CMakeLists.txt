@@ -103,4 +103,4 @@ LIST( APPEND CMAKE_MODULE_PATH
     target_include_directories(NiceDay PUBLIC
        "vendor/json/single_include"
     )
-    target_compile_options(NiceDay PUBLIC /bigobj)
+    #target_compile_options(NiceDay PUBLIC /bigobj)

@@ -1,8 +1,6 @@
 #include "net.h"
 #include "ndpch.h"
-#include <WinSock2.h>
-
-
+#include "net.h"
 #ifdef ND_PLATFORM_WINDOWS
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -10,7 +8,6 @@
 // need link with Ws2_32.lib
 #pragma comment(lib, "Ws2_32.lib")
 #else
-#include <sys/socket.h>
 #endif
 
 
@@ -38,7 +35,11 @@ Address::Address(unsigned long ip, int port)
 
 bool Address::isValid() const
 {
+#ifdef ND_PLATFORM_WINDOWS
 	return src.sin_addr.s_addr != ((ULONG)-1) && ntohs(src.sin_port) <= 65535;
+#else
+	return src.sin_addr.s_addr != ((in_addr_t)-1) && ntohs(src.sin_port) <= 65535;
+#endif
 }
 
 Address Address::build(const std::string& ipWithPort)
@@ -67,6 +68,7 @@ int Address::port() const
 
 std::string Address::ip() const
 {
+#ifdef ND_PLATFORM_WINDOWS
 	std::stringstream s;
 	s << (int)src.sin_addr.S_un.S_un_b.s_b1;
 	s << ".";
@@ -76,6 +78,10 @@ std::string Address::ip() const
 	s << ".";
 	s << (int)src.sin_addr.S_un.S_un_b.s_b4;
 	return s.str();
+#else
+	char buf[20];
+	return inet_ntop(AF_INET, &src.sin_addr, buf, sizeof(buf));
+#endif
 }
 
 NetResponseFlags_ init()
@@ -132,8 +138,17 @@ NetResponseFlags_ createSocket(Socket& s, const CreateSocketInfo& info)
 	}
 
 	//enable async
-	u_long enabled = info.async;
-	ioctlsocket(s.m_sock, FIONBIO, &enabled);
+	{
+		u_long enabled = info.async;
+#ifdef ND_PLATFORM_WINDOWS
+		ioctlsocket(s.m_sock, FIONBIO, &enabled);
+#else
+		int flags = fcntl(s.m_sock, F_GETFL, 0);
+		if (flags != -1)
+			flags = !info.async ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+		fcntl(s.m_sock, F_SETFL, flags) == 0;
+#endif
+	}
 
 	ND_INFO("Socket opened on port {}", info.port);
 
@@ -152,18 +167,24 @@ NetResponseFlags_ closeSocket(Socket& s)
 		return NetResponseFlags_Error;
 	}
 	s_sockets.erase(s_sockets.begin() + socketid);
-	closesocket(s.m_sock);
-
+	close(s.m_sock);
 	return NetResponseFlags_Success;
 }
 
+#ifdef ND_PLATFORM_WINDOWS
+typedef int sock_address_size;
+#else
+typedef socklen_t sock_address_size;
+#endif
+
 NetResponseFlags_ receive(const Socket& socket, Message& message)
 {
-	int SenderAddrSize = sizeof(message.address.src);
+	sock_address_size SenderAddrSize = sizeof(message.address.src);
 
 	int received = recvfrom(socket.m_sock, message.buffer.data(), message.buffer.capacity(), 0,
 	                        (sockaddr*)&message.address.src, &SenderAddrSize);
-	if (received != SOCKET_ERROR /* || received != ERROR_TIMEOUT*/)
+
+	if (received != -1 /* || received != ERROR_TIMEOUT*/)
 	{
 		message.buffer.setSize(received);
 		return NetResponseFlags_Success;
@@ -174,7 +195,7 @@ NetResponseFlags_ receive(const Socket& socket, Message& message)
 NetResponseFlags_ send(const Socket& s, const Message& m)
 {
 	if (sendto(s.m_sock, m.buffer.data(), m.buffer.size(), 0, (sockaddr*)&m.address.src,
-	           sizeof(m.address.src)) == SOCKET_ERROR)
+	           sizeof(m.address.src)) == -1)
 	{
 		ASSERT(false, "Error during sending to address {}", m.address.toString());
 		return NetResponseFlags_Error;

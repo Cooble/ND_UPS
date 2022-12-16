@@ -597,7 +597,7 @@ public:
 			ASSERT(false, "");
 			return nullVal();
 		}
-		auto& it = val_map->find(name);
+		auto it = val_map->find(name);
 		if (it == val_map->end())
 			return val_map->insert_or_assign(name, NBT()).first->second;
 		return it->second;
@@ -735,7 +735,7 @@ public:
 			val = defaultVal;
 			return false;
 		}
-		auto& it = val_map->find(key);
+		auto it = val_map->find(key);
 		bool found = it != val_map->end();
 		if (found)
 			val = (Arg0)it->second;
@@ -753,7 +753,7 @@ public:
 			val = defaultVal;
 			return false;
 		}
-		auto& it = val_map->find(key);
+		auto it = val_map->find(key);
 		bool found = it != val_map->end();
 		if (found)
 			val = it->second.string();
@@ -772,7 +772,7 @@ public:
 			val = defaultVal;
 			return false;
 		}
-		auto& it = val_map->find(key);
+		auto it = val_map->find(key);
 		bool found = it != val_map->end();
 		if (found)
 			val = (Arg)it->second;
@@ -795,7 +795,7 @@ public:
 			val = defaultVal;
 			return false;
 		}
-		auto& it = val_map->find(key);
+		auto it = val_map->find(key);
 		bool found = it != val_map->end();
 		if (found && it->second.isString())
 			val = it->second.string();
@@ -813,30 +813,31 @@ public:
 	{
 		if (!isMap()) return false;
 
-		auto& it = val_map->find(key);
+		auto it = val_map->find(key);
 		bool found = it != val_map->end();
 		if (found)
 			val = (Arg)it->second;
 		return found;
 	}
 
-	// sets val if value exists or returns false
-	template <>
-	bool load(const Stringo& key, Stringo& val) const
-	{
-		if (!isMap()) return false;
 
-		auto& it = val_map->find(key);
-		bool found = it != val_map->end();
-		if (found && it->second.isString())
-			val = it->second.string();
-		return found;
-	}
 
 
 	void write(const IBinaryStream::RWStream& write) const;
 	void read(const IBinaryStream::RWStream& read);
 };
+// sets val if value exists or returns false
+template <>
+inline bool NBT::load(const Stringo& key, Stringo& val) const
+{
+	if (!isMap()) return false;
+
+	auto it = val_map->find(key);
+	bool found = it != val_map->end();
+	if (found && it->second.isString())
+		val = it->second.string();
+	return found;
+}
 
 bool operator==(const NBT& a, const NBT& b);
 inline bool operator!=(const NBT& a, const NBT& b) { return !operator==(a, b); }

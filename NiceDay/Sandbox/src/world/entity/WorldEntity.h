@@ -7,7 +7,6 @@ namespace nd {
 class NBT;
 }
 
-class nd::NBT;
 constexpr int EFLAG_TEMPORARY =		BIT(0);//will be killed on chunk unload
 constexpr int EFLAG_CHUNK_LOADER =	BIT(1);//will keep chunks around loaded (usually Player)
 constexpr int EFLAG_COLLIDER  =		BIT(2);//will collide with other entities (will be pushed by them)

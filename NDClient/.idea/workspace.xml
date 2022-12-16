@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="bc6d6840-cd7e-44e0-9a71-c3d0337ecda5" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/Prot.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/Prot.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerCluster.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerCluster.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../NiceDay/Sandbox/src/layer/ServerLayer.h" afterDir="false" />
-    </list>
+    <list default="true" id="bc6d6840-cd7e-44e0-9a71-c3d0337ecda5" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -168,7 +163,7 @@
       <workItem from="1670769429990" duration="4456000" />
       <workItem from="1670786195178" duration="40506000" />
       <workItem from="1671002539312" duration="2570000" />
-      <workItem from="1671007520031" duration="33329000" />
+      <workItem from="1671007520031" duration="33742000" />
     </task>
     <servers />
   </component>

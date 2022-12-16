@@ -43,11 +43,11 @@ LIST( APPEND CMAKE_MODULE_PATH
 
     )
 
-
+    
 # Precompiled Header
-    target_precompile_headers(NiceDay PRIVATE 
-        "src/ndpch.h"
-        )
+   # target_precompile_headers(NiceDay PRIVATE 
+    #    "src/ndpch.h"
+    #    ) fuk linux gcc
 
 
 # DEFINES

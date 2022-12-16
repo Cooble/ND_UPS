@@ -70,8 +70,8 @@ const std::string& FUtil::getExecutablePath()
 #else
 		char result[PATH_MAX];
 		ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
-		auto s = std::string(result, (count > 0) ? count : 0);
-		cleanPathString(s);
+		out = std::string(result, (count > 0) ? count : 0);
+		cleanPathString(out);
 #endif
 
 	}

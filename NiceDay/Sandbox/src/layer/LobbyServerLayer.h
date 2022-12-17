@@ -11,7 +11,6 @@ class ServerLayer;
 
 
 constexpr int WORLD_SERVER_0_PORT = 1230;
-constexpr int WORLD_SERVER_1_PORT = 1231;
 
 
 class LobbyServerLayer : public nd::Layer
@@ -39,8 +38,9 @@ private:
 
 		PlayerInfo();
 	};
-
+	// default server to set traffic to
 	std::string GATEWAY;
+	// our lobby address
 	nd::net::Address m_address;
 	nd::net::Socket m_socket;
 	ServerCluster m_cluster;
@@ -53,17 +53,35 @@ public:
 	void onEvent(nd::Event& e) override;
 	void onUpdate() override;
 
+	// ping servers to see if still alive
 	void pingClusters();
+
+	// remove old players
 	void checkTimeout();
 
+	// parse settings.json and start servers in server cluster
 	bool createBasicServers();
 
+	// client/server sent request for a server or specific server
+	// redirect request to appropriate server
 	void onInvReq(nd::net::Message& m);
+
+	// redirect invitation from server to the client/other server
 	void onInvitation(nd::net::Message& m);
+	// accept response from server which is still alive
 	void onClusterPong(nd::net::Message& m);
+	// redirect error from server to client/other server
+	void onError(nd::net::Message& m);
 
 	bool m_close_pending=false;
+
+	// should close in next tick
 	bool isClosePending() const { return m_close_pending; }
+
+	// address from one of our servers
+	bool isServerAddress(nd::net::Address) const;
+	// sends udp error duh
+	void sendError(nd::net::Message&, const std::string& player,const std::string& reason);
 
 
 };

@@ -26,4 +26,8 @@ constexpr size_t PLAYER_SERVER_TIMEOUT = DISABLE_MOVE ? 100000000 : 5000;
 
 constexpr int MAX_PLAYER_NAME_LENGTH = 11;
 constexpr int MIN_PLAYER_NAME_LENGTH = 3;
+
+//any command longer than this will be silently discarded
+constexpr size_t MAX_COMMAND_MESSAGE_LENGTH=300;
+constexpr size_t HOP_TIMEOUT = 2000;
 }

@@ -15,14 +15,6 @@ public enum Prot {
     SessionCreated,
     //(player, session_id)
 
-    // Migrating server
-    MigrateREQ,
-    // (player_data, target_server)
-    MigrateWait,
-    // (player)
-    MigratedACK,
-    // (player, server)
-
     // Normal Ping
     Ping,
     Pong,
@@ -45,7 +37,8 @@ public enum Prot {
     PlayersMoved,
     PlayerMoves,
 
-    PlayerState;
+    PlayerState,
+    Error;
 }
 
 

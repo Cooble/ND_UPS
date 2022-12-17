@@ -2,6 +2,7 @@
 #include "net/net_iterator.h"
 #include "core/SUtil.h"
 #include "world/block/Block.h"
+#include "server_constants.h"
 #include "world/entity/EntityManager.h"
 
 
@@ -21,13 +22,6 @@ enum class Prot :int
 	SessionCreated,
 	//(player, session_id)
 
-	// Migrating server
-	MigrateREQ,
-	// (player_data, target_server)
-	MigrateWait,
-	// (player)
-	MigratedACK,
-	// (player, server)
 
 	// Normal Ping
 	Ping,
@@ -52,6 +46,7 @@ enum class Prot :int
 	PlayerMoves,
 
 	PlayerState,
+	Error,
 };
 
 inline const char* ProtStrings[128] = {
@@ -77,6 +72,7 @@ inline const char* ProtStrings[128] = {
 	"PlayersMoved	",
 	"PlayerMoves	",
 	"PlayerState	",
+	"Error			",
 
 };
 
@@ -201,7 +197,7 @@ struct CommandProtocol : SessionProtocol
 		if (!SessionProtocol::deserialize(reader))
 			return false;
 
-		return reader.get(message);
+		return reader.get(message) && message.size() < server_const::MAX_COMMAND_MESSAGE_LENGTH;
 	}
 
 	void serialize(nd::net::NetWriter& writer) const
@@ -393,6 +389,7 @@ struct PlayersMoved : ProtocolHeader
 struct PlayerState : ProtocolHeader
 {
 	std::string name;
+
 	enum:int
 	{
 		Fly,
@@ -420,5 +417,30 @@ struct PlayerState : ProtocolHeader
 		writer.put(name);
 		writer.put((int)type);
 		writer.put(value);
+	}
+};
+
+struct ErrorProtocol:ProtocolHeader
+{
+	std::string player;
+	std::string reason;
+
+	ErrorProtocol() { action = Prot::Error; }
+
+	bool deserialize(nd::net::NetReader& reader)
+	{
+		if (!ProtocolHeader::deserialize(reader))
+			return false;
+
+		return
+			reader.get(player) &&
+			reader.get(reason);
+	}
+
+	void serialize(nd::net::NetWriter& writer) const
+	{
+		ProtocolHeader::serialize(writer);
+		writer.put(player);
+		writer.put(reason);
 	}
 };

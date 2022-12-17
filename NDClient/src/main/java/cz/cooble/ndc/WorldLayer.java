@@ -35,6 +35,18 @@ public class WorldLayer extends Layer {
     private BatchRenderer2D renderer;
     private GuiConsole console;
     private GuiLayer guiLayer;
+    private ErrorProtocol currentError;
+
+    float CURSOR_X;
+    float CURSOR_Y;
+
+    Timeout.Pocket connectTimeout = new Timeout.Pocket(Globals.CONNECT_TIMEOUT);
+
+    // history of client block placements and player moves
+    int blockHistoryEventIdx = 1;
+    List<BlockModify> blockHistory = new ArrayList<>();
+    int playerHistoryIdx = 1;
+    List<PlayerMoves> playerHistory = new ArrayList<>();
 
 
     static SpriteSheetResource res = new SpriteSheetResource(new Texture(
@@ -54,19 +66,18 @@ public class WorldLayer extends Layer {
         RegistryLoader.load();
         ChunkMesh.init();
 
+        currentError=null;
         cam.setPosition(new Vector2f(0, 0));
 
-        guiLayer.openConnectScreen(this::onIpEntered);
-
+        // prepare world
         world = new World();
         world.getInfo().chunk_width = 3;
         world.getInfo().chunk_height = 3;
 
 
+        // graphics
         worldRenderManager = new WorldRenderManager(cam, world);
-
         renderer = new BatchRenderer2D();
-
         Stats.bound_sprite = new Sprite(res);
         Stats.bound_sprite.setSpriteIndex(0, 0, false, false, false);
         Stats.bound_sprite.setPosition(new Vector3f(0, 0, 0));
@@ -76,12 +87,19 @@ public class WorldLayer extends Layer {
         console = new GuiConsole();
         console.setOnEnter(client::addPendingCommand);
 
+
+        // callbacks
         client.setOnDisconnect(s -> {
             client.closeSession();
             guiLayer.openInfoScreen("Server disconnected.\nReason:\n" + s, () -> guiLayer.openConnectScreen(this::onIpEntered));
         });
         client.setOnBlockEventsCallback(this::onBlockPacket);
         client.setOnPlayerState(this::onPlayerState);
+        client.setOnError(this::onError);
+        client.setOnSessionCreatedCallback(this::onSessionCreated);
+
+        // open default gui screen
+        guiLayer.openConnectScreen(this::onIpEntered);
     }
 
     @Override
@@ -143,30 +161,25 @@ public class WorldLayer extends Layer {
         if (!isLoading)
             return;
 
-        if (connectTimeout.isRunning()) {
-            if (connectTimeout.isTimeout()) {
-                guiLayer.openInfoScreen("Could not connect!", () -> guiLayer.openConnectScreen(this::onIpEntered));
-                connectTimeout.stop();
-                client.closeSession();
-                isLoading = false;
-                onAttach(); //reattach world
-            }
-            if (client.isSessionCreated()) {
-                guiLayer.openInfoScreen("Downloading map...", null);
-
-                for (int x = 0; x < world.getInfo().chunk_width; x++)
-                    for (int y = 0; y < world.getInfo().chunk_height; y++)
-                        client.addPendingChunk(half_int(x, y));
-
-                connectTimeout.stop();
-            }
-            //close gui when connected and downloaded map
-        } else if (client.isSessionCreated()
+        // all chunks are downloaded, time to stop loading and begin game
+        if (client.isSessionCreated()
                 && !client.hasPendingChunks()
                 && guiLayer.isEnabled()) {
             guiLayer.setEnabled(false);
             player = world.getPlayerOrNew(client.getPlayerName());
             isLoading = false;
+            return;
+        }
+
+        // if timeout, reset everything
+        if (connectTimeout.isTimeout() || currentError != null) {
+            //reattach world, restart everything
+            guiLayer.openInfoScreen("Could not connect!\n" + ((currentError != null) ? currentError.reason : "Timeout"), this::onAttach);
+            connectTimeout.stop();
+            client.closeSession();
+            isLoading = false;
+            //close gui when connected and downloaded map
+            return;
         }
     }
 
@@ -179,6 +192,7 @@ public class WorldLayer extends Layer {
 
         updateConnect();
 
+        // gather new chunks
         if (client.hasPendingChunks()) {
             var newChunk = client.getNewChunk();
             if (newChunk != null) {
@@ -187,13 +201,13 @@ public class WorldLayer extends Layer {
             }
             return;
         }
+
         if (isLoading || !client.isSessionCreated())
             return;
 
         var p = client.getPlayersMoved();
         if (p != null)
             onPlayers(p);
-
 
         String s;
         while ((s = client.getNewCommand()) != null)
@@ -209,10 +223,11 @@ public class WorldLayer extends Layer {
         cam.setPosition(player.getPosition());
     }
 
+    // ========callbacks=================
     private void onPlayerState(PlayerState state) {
         System.out.println("Player state change " + state.type.name() + " valu: " + state.value + " for player " + state.name);
         if (state.type == PlayerState.Type.Fly) {
-            var p  = world.getPlayerOrNew(state.name);
+            var p = world.getPlayerOrNew(state.name);
             p.setFlying(state.value);
         } else if (state.type == PlayerState.Type.Connect) {
             if (state.value) {
@@ -273,15 +288,22 @@ public class WorldLayer extends Layer {
         }
     }
 
-    float CURSOR_X;
-    float CURSOR_Y;
+    private void onError(ErrorProtocol e) {
+        if (!client.isSessionCreated()) {
+            currentError = e;
+            System.out.println("Receiving error "+currentError.reason);
+        }
+    }
 
-    Timeout.Pocket connectTimeout = new Timeout.Pocket(5000);
-
-    int blockHistoryEventIdx = 1;
-    List<BlockModify> blockHistory = new ArrayList<>();
-    int playerHistoryIdx = 1;
-    List<PlayerMoves> playerHistory = new ArrayList<>();
+    private void onSessionCreated(EstablishConnectionHeader e){
+        world.clearWorld();
+        guiLayer.openInfoScreen("Downloading map...", null);
+        for (int x = 0; x < world.getInfo().chunk_width; x++)
+            for (int y = 0; y < world.getInfo().chunk_height; y++)
+                client.addPendingChunk(half_int(x, y));
+        connectTimeout.stop();
+        isLoading = true;
+    }
 
     public void onBlockPacket(ProtocolHeader packet) {
         if (packet instanceof BlockModify) {
@@ -391,7 +413,6 @@ public class WorldLayer extends Layer {
         else
             world.setWallWithNotify(e.x, e.y, e.before_id);
     }
-
 
     int primaryBlockId = BlockID.BLOCK_SNOW;
     int secondaryBlockID = BlockID.BLOCK_AIR;

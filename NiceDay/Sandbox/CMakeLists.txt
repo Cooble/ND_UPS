@@ -46,6 +46,15 @@ project(Sandbox)
 #    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
 #        "${PROJECT_BINARY_DIR}/vendor/Knihovna/$<CONFIG>/Knihovna.dll"
 #        $<TARGET_FILE_DIR:Runner>)
+
+#add some pthreads because debian...
+if(MSVC)
+
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(Sandbox PRIVATE Threads::Threads)
+endif()
+
 execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/../BuildIDHeader.cmake)
 
 add_custom_target(

@@ -25,8 +25,10 @@ public class ClientLayer extends Layer {
     private Socket socket;
     private TCPTunnel tunnel;
     private int session_id;
+    private int invitation_id;
     private boolean isSessionCreated;
     private InetSocketAddress serverAddress;
+    private InetSocketAddress invitationServerAddress;
 
 
     private Set<Integer> pendingChunkIds;
@@ -96,13 +98,17 @@ public class ClientLayer extends Layer {
         return playerName;
     }
 
+
     public void closeSession() {
         initTimeouts();
         if (!isSessionCreated)
             return;
         isSessionCreated = false;
         sendClose(new Message(500));
-
+        pendingChunkIds.clear();
+        pendingPieces.clear();
+        playerMoveEvents.clear();
+        playersMoved.clear();
     }
 
     //=======EVENT=REQUESTS=========================
@@ -144,10 +150,10 @@ public class ClientLayer extends Layer {
         var a = new EstablishConnectionHeader();
         a.action = Prot.InvitationACK;
         a.player_name = playerName;
-        a.session_id = session_id;
+        a.session_id = invitation_id;
         a.serialize(new NetWriter(m.buffer));
 
-        m.address = serverAddress;
+        m.address = invitationServerAddress;
         socket.send(m);
 
         t.start(TM_INVITATION_ACK);
@@ -229,8 +235,8 @@ public class ClientLayer extends Layer {
     private void onInvitation(Message m) {
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
-        session_id = a.session_id;
-        serverAddress = Net.Address.build(a.server_name);
+        invitation_id = a.session_id;
+        invitationServerAddress = Net.Address.build(a.server_name);
         sendInvitationACK(m);
         t.stop(TM_INV_REQ);
         System.out.println("Invitation from lobby received");
@@ -242,13 +248,35 @@ public class ClientLayer extends Layer {
         onPlayerState.accept(a);
     }
 
+    Consumer<EstablishConnectionHeader> onSessionCreatedCallback;
+
+    public void setOnSessionCreatedCallback(Consumer<EstablishConnectionHeader> onSessionCreatedCallback) {
+        this.onSessionCreatedCallback = onSessionCreatedCallback;
+    }
+
     private void onSessionCreated(Message m) {
+        if (invitationServerAddress == null || !invitationServerAddress.equals(m.address))
+            return;
+
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
+        if (isSessionCreated) {
+            System.out.println("Closing old session " + serverAddress.toString()
+                    + " and preparing for new " + invitationServerAddress.toString());
+            closeSession();
+        }
+
+        // set new address and session
+        serverAddress = invitationServerAddress;
+        invitationServerAddress = null;
+        session_id = a.session_id;
+        invitation_id = -1;
         isSessionCreated = true;
         System.out.println("Session id successfully obtained: " + a.session_id);
         t.stop(TM_INVITATION_ACK);
         tunnel = new TCPTunnel(socket, serverAddress, session_id, 3000);
+
+        onSessionCreatedCallback.accept(a);
     }
 
     private void onCommandReceived(Message m) {
@@ -290,29 +318,37 @@ public class ClientLayer extends Layer {
         a.deserialize(new NetReader(m.buffer));
 
 
-        if (!isSessionCreated) {
-            // packets allowed only before session is created
-            if (a.action == Prot.Invitation) {
-                onInvitation(m);
-            } else if (a.action == Prot.SessionCreated) {
-                onSessionCreated(m);
-            }
-        } else {
-            //packets allowed only after session is created
-            if (a.action == Prot.ChunkACK) {
-                onChunkACK(m);
-            } else if (a.action == Prot.Command) {
-                onCommandReceived(m);
-            } else if (a.action == Prot.Quit) {
-                onQuitReceived(m);
-            } else if (a.action == Prot.BlockModify || a.action == Prot.BlockAck) {
-                onBlockPacket(m);
-            } else if (a.action == Prot.PlayersMoved) {
-                onMoved(m);
-            } else if (a.action == Prot.PlayerState) {
-                onPlayerState(m);
-            }
+        if (a.action == Prot.Invitation) {
+            onInvitation(m);
+        } else if (a.action == Prot.SessionCreated) {
+            onSessionCreated(m);
+        } else if (a.action == Prot.ChunkACK) {
+            onChunkACK(m);
+        } else if (a.action == Prot.Command) {
+            onCommandReceived(m);
+        } else if (a.action == Prot.Quit) {
+            onQuitReceived(m);
+        } else if (a.action == Prot.BlockModify || a.action == Prot.BlockAck) {
+            onBlockPacket(m);
+        } else if (a.action == Prot.PlayersMoved) {
+            onMoved(m);
+        } else if (a.action == Prot.PlayerState) {
+            onPlayerState(m);
+        } else if (a.action == Prot.Error) {
+            onError(m);
         }
+
+    }
+
+    public void setOnError(Consumer<ErrorProtocol> onError) {
+        this.onErrorCallback = onError;
+    }
+
+    Consumer<ErrorProtocol> onErrorCallback;
+    private void onError(Message m){
+        ErrorProtocol e = new ErrorProtocol();
+        e.deserialize(new NetReader(m.buffer));
+        onErrorCallback.accept(e);
     }
 
     private void onMoved(Message m) {

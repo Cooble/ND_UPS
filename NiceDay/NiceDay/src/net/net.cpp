@@ -33,6 +33,7 @@ Address::Address(unsigned long ip, int port)
 	src.sin_port = htons(port); /* server port */
 }
 
+
 bool Address::isValid() const
 {
 #ifdef ND_PLATFORM_WINDOWS

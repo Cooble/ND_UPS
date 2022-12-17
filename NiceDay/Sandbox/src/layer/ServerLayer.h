@@ -29,20 +29,30 @@ public:
 	typedef int SessionID;
 	struct PlayerInfo
 	{
+		// time of the last response from player 
 		size_t lastSeen;
 		nd::net::Address address;
 		SessionID session_id = 0;
+
+		// not valid until invAck is received
 		bool isValid = false;
+
 		std::string name;
 
+		// time when hop was requested
+		size_t hopTime=0;
+
+		// move info about server update
 		PlayerMoved moves0;
 		PlayerMoved moves1;
+
+		// which PlayerMoved is current is which is future
 		bool moves_flip = false;
 
 		auto& curMoves() { return moves_flip ? moves1 : moves0; }
 		auto& nextMoves() { return moves_flip ? moves0 : moves1; }
-		void flipMoves() { moves_flip ^= 1; }
 
+		void flipMoves() { moves_flip ^= 1; }
 
 		bool isAlive() const;
 		void updateLife();
@@ -135,40 +145,45 @@ public:
 
 	bool isValidSession(SessionID id);
 
+	void sendError(nd::net::Message& , const std::string& name, const std::string& reason);
 	// ON MESSAGE RECEIVED, called when message received
-	void onInvReq(nd::net::Message& message);
-	void onInvACK(nd::net::Message& message);
-	void onPlayerConnected(nd::net::Message& m, PlayerInfo& info);
-	void onChunkReq(nd::net::Message& message);
-	void onCommand(nd::net::Message& message);
-	void onQuit(nd::net::Message& message);
-	void onBlockModify(nd::net::Message& m, SessionID session);
-	void onMove(nd::net::Message& m);
+	void onInvReq(nd::net::Message&);
+	void onInvACK(nd::net::Message&);
+	void onPlayerConnected(nd::net::Message&, PlayerInfo& info);
+	void onChunkReq(nd::net::Message&);
+	void onCommand(nd::net::Message&);
+	void onQuit(nd::net::Message&);
+	void onBlockModify(nd::net::Message&, SessionID session);
+	void onMove(nd::net::Message&);
+	void onInvitation(nd::net::Message&);
+	void onError(nd::net::Message&);
 
 	// UPDATES, called each tick
 	void onUpdate() override;
 	void updateDeathCounter();
-	void updateCheckTimeout(nd::net::Message& message);
+	void updateCheckTimeout(nd::net::Message&);
 	void updateSendChunks();
 	void updateCryForAttention();
-	void updateUDP(nd::net::Message& m);
-	void updateTCP(nd::net::Message& m);
+	void updateUDP(nd::net::Message&);
+	void updateTCP(nd::net::Message&);
+	void updateHopTimeout(nd::net::Message&);
 
 
 	// ACTIONS
 	void flushTCP();
-	void disconnectClient(nd::net::Message& message, SessionID id, std::string_view reason, bool sendMessage = true);
-	void disconnectAll(nd::net::Message& message, std::string_view reason);
+	void disconnectClient(nd::net::Message&, SessionID id, std::string_view reason, bool sendMessage = true);
+	void disconnectAll(nd::net::Message&, std::string_view reason);
 	void scheduleStop(bool exit_or_restart);
 	void sendClusterPong(nd::net::Address a);
-	void broadcastCommand(nd::net::Message& message, const std::string& sender, const std::string& cmd, SessionID except = -1);
-	void sendCommand(nd::net::Message& message, SessionID id, const std::string& sender, const std::string& cmd);
+	void broadcastCommand(nd::net::Message&, const std::string& sender, const std::string& cmd, SessionID except = -1);
+	void sendCommand(nd::net::Message&, SessionID id, const std::string& sender, const std::string& cmd);
 	void prepareMove();
 	void applyMoves();
 	void applyMove(EntityPlayer& player, Inputs& inputs);
-	void sendMoves(nd::net::Message& m);
+	void sendMoves(nd::net::Message&);
 	int playerCollisionCount();
-	void broadcastTCPMessage(nd::net::Message& m);
+	void broadcastTCPMessage(nd::net::Message&);
+	void hop(nd::net::Message&, SessionID sessionId, const std::string& serverName);
 
 
 private:
@@ -176,6 +191,7 @@ private:
 	void openSocket();
 	void closeSocket();
 	SessionID allocateNewSessionID();
+	nd::net::TCPTunnel& tun(SessionID);
 };
 
 

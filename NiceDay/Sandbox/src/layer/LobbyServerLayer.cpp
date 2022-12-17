@@ -4,12 +4,10 @@
 #include "ServerLayer.h"
 #include "server_constants.h"
 #include "event/KeyEvent.h"
-#include "net/Multiplayer.h"
 
 #include "net/net.h"
 #include "net/net_iterator.h"
 #include "world/nd_registry.h"
-#include "world/block/Block.h"
 
 using namespace nd::net;
 
@@ -53,18 +51,24 @@ void LobbyServerLayer::onAttach()
 
 	try
 	{
-		createBasicServers();
+		if (!createBasicServers())
+			throw std::exception();
 	}
 	catch (...)
 	{
-		ND_ERROR("Error encountered during parsing settings.json, remove settings.json before starting server.");
+		ND_ERROR("Lobby: Error encountered during parsing settings.json, remove settings.json before starting server.");
 		m_close_pending = true;
 		return;
 	}
 	auto info = nd::net::CreateSocketInfo();
 	info.async = true;
 	info.port = m_address.port();
-	createSocket(m_socket, info);
+	if (createSocket(m_socket, info) != NetResponseFlags_Success)
+	{
+		ND_ERROR("Lobby: Could not open socket");
+		m_close_pending = true;
+		return;
+	}
 }
 
 void LobbyServerLayer::onDetach()
@@ -101,11 +105,9 @@ void LobbyServerLayer::onUpdate()
 		case Prot::Invitation:
 			onInvitation(m);
 			break;
-
-		case Prot::MigrateREQ: break;
-		case Prot::MigrateWait: break;
-		case Prot::MigratedACK: break;
-
+		case Prot::Error:
+			onError(m);
+			break;
 		case Prot::Ping:
 			header.action = Prot::Pong;
 			NetWriter(m.buffer).put(header);
@@ -182,17 +184,18 @@ bool LobbyServerLayer::createBasicServers()
 )";
 		std::ofstream o("settings.json");
 		o << f;
-		ND_INFO("JSON Settings file not found, creating one.");
+		ND_INFO("Lobby: JSON Settings file not found, creating one.");
 	}
 
 	std::ifstream i("settings.json");
 	json j;
 	i >> j;
 
+
 	m_address = nd::net::Address(j.value("ip", "127.0.0.1"), j.value("port", server_const::LOBBY_PORT));
-	if (!m_address.isValid())
+	if (!m_address.isValid() || m_address.isPortReserved())
 	{
-		ND_ERROR("Settings parsing failed invalid format");
+		ND_ERROR("Lobby: Settings parsing failed invalid format or invalid port");
 		return false;
 	}
 	ND_INFO("Lobby server settings loaded: {}", m_address.toString());
@@ -209,17 +212,18 @@ bool LobbyServerLayer::createBasicServers()
 		{
 			auto name = w.key();
 			int port = w.value().value("port", 0);
-			if (!nd::net::Address("127.0.0.1", port).isValid())
+			auto ad = nd::net::Address(m_address.ip(), port);
+			if (!ad.isValid() || ad.isPortReserved())
 			{
 				ND_ERROR("Invalid port number encountered during settings load.");
 				return false;
 			}
-			servers.emplace_back(name, nd::net::Address("0.0.0.0", port));
+			servers.emplace_back(name, ad);
 		}
 
 	for (auto& [string,address] : servers)
 	{
-		ND_INFO("Creating Server: {} on port {}", string, address.port());
+		ND_INFO("Lobby: Creating Server: {}", address.toString());
 		m_cluster.startServer(new ServerLayer(string, address.port(), m_address));
 	}
 	// dont forget to set first server as gateway
@@ -230,61 +234,84 @@ bool LobbyServerLayer::createBasicServers()
 // redirect request to world server
 void LobbyServerLayer::onInvReq(nd::net::Message& m)
 {
-	EstablishConnectionProtocol playerHeader;
-	if (!NetReader(m.buffer).get(playerHeader))
+	EstablishConnectionProtocol h;
+	if (!NetReader(m.buffer).get(h))
 	{
-		ND_WARN("InvREQ: Could not parse");
+		ND_WARN("Lobby: InvREQ: Could not parse");
 		return;
 	}
 
-	if (playerHeader.player.size() < server_const::MIN_PLAYER_NAME_LENGTH
-		|| playerHeader.player.size() > server_const::MAX_PLAYER_NAME_LENGTH)
+	// check player name size
+	if (h.player.size() < server_const::MIN_PLAYER_NAME_LENGTH
+		|| h.player.size() > server_const::MAX_PLAYER_NAME_LENGTH)
 	{
-		ND_WARN("InvREQ: Attempt with longer name: {}", playerHeader.player);
+		ND_WARN("Lobby: InvREQ: Attempt with longer name: {}", h.player);
+		sendError(m, h.player, "Refused to connect: Invalid name");
 		return;
 	}
 
-	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
+	PlayerInfo& playerInfo = m_player_book[h.player];
 	playerInfo.address = m.address; // save sender address
+
+	// force server address only if sender is server
+	if (isServerAddress(m.address))
+	{
+		if (m_server_book.contains(h.server) && m_server_book[h.server].isAlive())
+		{
+			playerInfo.serverName = h.server;
+		}
+		else
+		{
+			sendError(m, h.player, "Refused to connect: Server does not exist");
+			return;
+		}
+	}
+
+	// if server does not exist, set gateway
 	if (!m_server_book.contains(playerInfo.serverName) || !m_server_book[playerInfo.serverName].isAlive())
 	{
-		ND_INFO("InvREQ: Could not find alive server {}, choosing GATEWAY: {} instead", playerInfo.serverName, GATEWAY);
+		ND_INFO("Lobby: InvREQ: Could not find alive server {}, choosing GATEWAY: {} instead", playerInfo.serverName,
+		        GATEWAY);
 		playerInfo.serverName = GATEWAY;
 	}
 
-	if (!m_server_book[playerInfo.serverName].isAlive())
+	// if finally the server is not alive
+	if (!m_server_book.contains(playerInfo.serverName) || !m_server_book[playerInfo.serverName].isAlive())
 	{
-		ND_WARN("InvREQ: Cannot respond: No servers running, not even gateway");
+		ND_WARN("Lobby: InvREQ: Cannot respond: No servers running, not even gateway");
+		sendError(m, h.player, "Refused to connect: No servers running");
 		return;
 	}
-	NetWriter(m.buffer).put(playerHeader);
+
+	// jesus at last redirect request to server
+	NetWriter(m.buffer).put(h);
 	m.address = m_server_book[playerInfo.serverName].address;
 	nd::net::send(m_socket, m);
 }
 
 void LobbyServerLayer::onInvitation(nd::net::Message& m)
 {
-	EstablishConnectionProtocol playerHeader;
+	EstablishConnectionProtocol h;
 
-	if (!NetReader(m.buffer).get(playerHeader))
+	if (!NetReader(m.buffer).get(h))
 	{
-		ND_WARN("Inv: Could not parse");
+		ND_WARN("Lobby: Inv: Could not parse");
 		return;
 	}
 
-	if (!m_player_book.contains(playerHeader.player))
+	if (!m_player_book.contains(h.player))
 	{
-		ND_WARN("Inv: Received invitation from server for player {} who has already timed out", playerHeader.player);
+		ND_WARN("Lobby: Inv: Received invitation from server for player {} who has already timed out", h.player);
 		return;
 	}
 
-	PlayerInfo& playerInfo = m_player_book[playerHeader.player];
+	PlayerInfo& playerInfo = m_player_book[h.player];
 
 	auto adr = m.address.toString();
 	//send same ip as lobby server is in, works only if other servers are localhost
-	playerHeader.server = Address(m_address.ip(), m.address.port()).toString();
+	h.server = Address(m_address.ip(), m.address.port()).toString();
 
-	NetWriter(m.buffer).put(playerHeader);
+	NetWriter(m.buffer).put(h);
 	m.address = playerInfo.address;
 	nd::net::send(m_socket, m);
 }
@@ -301,4 +328,44 @@ void LobbyServerLayer::onClusterPong(nd::net::Message& m)
 	auto& serverInfo = m_server_book[serverName];
 	m_server_book[serverName].address = m.address;
 	serverInfo.updateLife();
+}
+
+void LobbyServerLayer::onError(nd::net::Message& m)
+{
+	// redirect only errors from servers
+	if (!isServerAddress(m.address))
+		return;
+
+	ErrorProtocol h;
+	if (!NetReader(m.buffer).get(h))
+	{
+		ND_WARN("Lobby: ErrorProtocol: Could not parse");
+		return;
+	}
+
+	if (m_player_book.contains(h.player))
+	{
+		m.address = m_player_book[h.player].address;
+		send(m_socket, m);
+		ND_TRACE("Lobby: Redirecting error from server to client");
+	}
+	else
+		ND_TRACE("Lobby: Cannot redirect error, client not found");
+}
+
+bool LobbyServerLayer::isServerAddress(nd::net::Address a) const
+{
+	for (auto& s : m_server_book)
+		if (s.second.address == a)
+			return true;
+	return false;
+}
+
+void LobbyServerLayer::sendError(nd::net::Message& m, const std::string& player, const std::string& reason)
+{
+	ErrorProtocol p;
+	p.player = player;
+	p.reason = reason;
+	NetWriter(m.buffer).put(p);
+	send(m_socket, m);
 }

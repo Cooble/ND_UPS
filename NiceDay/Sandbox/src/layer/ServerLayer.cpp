@@ -59,6 +59,11 @@ ServerLayer::SessionID ServerLayer::allocateNewSessionID()
 	return ++m_last_id;
 }
 
+nd::net::TCPTunnel& ServerLayer::tun(SessionID id)
+{
+	return m_tunnels.find(id)->second;
+}
+
 ServerLayer::ServerLayer(const std::string& name, int port,
                          nd::net::Address lobbyAddress): m_lobby_address(lobbyAddress), m_port(port)
 {
@@ -104,6 +109,15 @@ bool ServerLayer::isValidSession(SessionID id)
 	return m_player_book.contains(id) && m_player_book[id].isValid;
 }
 
+void ServerLayer::sendError(nd::net::Message& m, const std::string& player, const std::string& reason)
+{
+	ErrorProtocol p;
+	p.player = player;
+	p.reason = reason;
+	NetWriter(m.buffer).put(p);
+	send(m_socket, m);
+}
+
 // ================ON UPDATE========================
 void ServerLayer::onUpdate()
 {
@@ -114,6 +128,7 @@ void ServerLayer::onUpdate()
 
 	Message& m = m_big_udp_message;
 	updateCheckTimeout(m);
+	updateHopTimeout(m);
 
 	//prepare new space for possible move events from players 
 	prepareMove();
@@ -167,6 +182,9 @@ void ServerLayer::updateUDP(nd::net::Message& m)
 		case Prot::InvitationACK:
 			onInvACK(m);
 			break;
+		case Prot::Invitation:
+			onInvitation(m);
+			break;
 		case Prot::ChunkREQ:
 			onChunkReq(m);
 			break;
@@ -188,6 +206,9 @@ void ServerLayer::updateUDP(nd::net::Message& m)
 			break;
 		case Prot::Quit:
 			onQuit(m);
+			break;
+		case Prot::Error:
+			onError(m);
 			break;
 		default: ;
 		}
@@ -219,6 +240,22 @@ void ServerLayer::updateTCP(nd::net::Message& m)
 	flushTCP();
 }
 
+void ServerLayer::updateHopTimeout(nd::net::Message& m)
+{
+	auto now = nd::nowTime();
+	for(auto& [session,info]:m_player_book)
+	{
+		if(!info.hopTime)
+			continue;
+
+		if(now-info.hopTime>server_const::HOP_TIMEOUT)
+		{
+			info.hopTime = 0;
+			sendCommand(m, session, "server", "Hop Server not responding");
+		}
+	}
+}
+
 void ServerLayer::updateCryForAttention()
 {
 	if (m_ticks_until_cry-- != 0)
@@ -227,6 +264,8 @@ void ServerLayer::updateCryForAttention()
 
 	sendClusterPong(m_lobby_address);
 }
+
+
 
 void ServerLayer::updateCheckTimeout(nd::net::Message& m)
 {
@@ -321,6 +360,7 @@ void ServerLayer::onInvReq(nd::net::Message& m)
 	if (m_session_ids.contains(h.player) && m_player_book[m_session_ids[h.player]].isValid)
 	{
 		ND_WARN("InvREQ: Player {} already exists on the server, you shall not pass!", h.player);
+		sendError(m, h.player, "Refused to connect: Player with the same name already on server");
 		return; //already here with same name
 	}
 
@@ -385,6 +425,47 @@ void ServerLayer::onInvACK(nd::net::Message& m)
 	ND_INFO("InvACK: Client: {} (re)obtained session ID: {}", m.address.toString(), info.session_id);
 	ND_TRACE("InvACK: Sending SessionCreated to {} on {}", h.player, m.address.toString());
 }
+void ServerLayer::onInvitation(nd::net::Message& m)
+{
+	EstablishConnectionProtocol h;
+	if (!NetReader(m.buffer).get(h))
+	{
+		ND_WARN("InvACK: Could not parse");
+		return;
+	}
+	if(!m_session_ids.contains(h.player))
+	{
+		ND_WARN("Received invitation from other server for player that does net exist {} ", h.player);
+		return;
+	}
+	auto& info = m_player_book[m_session_ids[h.player]];
+	if(!info.isValid)
+	{
+		ND_WARN("Received invitation from other server for player who is invalid {} ", h.player);
+		return;
+	}
+	if(info.hopTime==0)
+	{
+		ND_WARN("Received invitation from other server, but is already past timeout ", h.player);
+		return;
+	}
+	// disable timeout
+	info.hopTime = 0;
+
+	// resend message to client via tcp yeehah
+	tun(info.session_id).write(m);
+}
+
+void ServerLayer::onError(nd::net::Message& m)
+{
+	ErrorProtocol h;
+	if (!NetReader(m.buffer).get(h))
+	{
+		ND_WARN("ErrorProtocol: Could not parse");
+		return;
+	}
+	ND_INFO("Received error from {} for player: {} with reason: {}", m.address.toString(), h.player, h.reason);
+}
 
 void ServerLayer::onPlayerConnected(nd::net::Message& m, PlayerInfo& info)
 {
@@ -406,7 +487,7 @@ void ServerLayer::onPlayerConnected(nd::net::Message& m, PlayerInfo& info)
 
 	// send states of all connected players to player.
 	// we are sending fly instead of connect, because if fly is received, player must be already connected
-	auto& tunnel = m_tunnels.find(info.session_id)->second;
+	auto& tunnel = tun(info.session_id);
 	for (auto& [session,in] : m_player_book)
 	{
 		if (!in.isValid || session == info.session_id)
@@ -488,6 +569,19 @@ void ServerLayer::onCommand(nd::net::Message& m)
 			ND_INFO("Command: Received restart");
 			scheduleStop(false);
 			broadcastCommand(m, "server", "Server restarting, bye bye");
+		}
+		else if (nd::SUtil::startsWith(cmd, "hop "))
+		{
+			std::vector<std::string> words;
+			nd::SUtil::splitString(cmd, words, " ");
+			if (words.size() != 2)
+			{
+				sendCommand(m, h.session_id, "server", "Specify server to hop to");
+				return;
+			}
+			auto& serverName = words[1];
+			ND_INFO("Command: Received hop to {}", serverName);
+			hop(m,h.session_id, serverName);
 		}
 		else if (cmd == "fly")
 		{
@@ -881,4 +975,20 @@ void ServerLayer::broadcastTCPMessage(nd::net::Message& m)
 		if (!m_tunnels.find(session)->second.write(m))
 			ND_WARN("Cannot send tcp message to {}, buffer full", in.name);
 	}
+}
+
+void ServerLayer::hop(Message& m, SessionID sessionId, const std::string& serverName)
+{
+	auto& info = m_player_book[sessionId];
+	info.hopTime = nd::nowTime();
+
+	EstablishConnectionProtocol p;
+	p.player = info.name;
+	p.server = serverName;
+	p.action = Prot::InvitationREQ;
+
+	NetWriter(m.buffer).put(p);
+	m.address = m_lobby_address;
+	send(m_socket, m);
+
 }

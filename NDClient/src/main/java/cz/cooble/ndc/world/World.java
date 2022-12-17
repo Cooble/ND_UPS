@@ -42,6 +42,7 @@ public class World {
             m_players.put(name, new Player(name));
         return m_players.get(name);
     }
+
     public Player getPlayer(String name) {
         if (!m_players.containsKey(name))
             return null;
@@ -68,6 +69,11 @@ public class World {
 
     public Map<String, Player> getPlayers() {
         return m_players;
+    }
+
+    public void clearWorld() {
+        m_players.clear();
+        m_chunks.clear();
     }
 
     public static class WorldInfo {

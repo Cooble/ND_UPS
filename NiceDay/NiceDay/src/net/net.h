@@ -32,6 +32,7 @@ struct Address
 	Address(const std::string& ip, int port);
 	Address(unsigned long ip, int port);
 	bool isValid() const;
+	bool isPortReserved() const { return port() >= 0 && port() <= 1023; }
 	static Address build(const std::string& ipWithPort);
 	std::string toString() const;
 	int port() const;

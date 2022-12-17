@@ -1,6 +1,6 @@
 ﻿#include "ndpch.h"
 #include "World.h"
-
+#include "nlohmann/json.hpp"
 #include <block_ids.h>
 #include <complex>
 
@@ -65,7 +65,7 @@ void World::onUpdate()
 		p.second->update(*this);
 }
 
-void World::createPlayer(int sessionId)
+void World::createPlayer(int sessionId,const std::string& name)
 {
 	if (m_players.find(sessionId) != m_players.end())
 		return;
@@ -73,13 +73,20 @@ void World::createPlayer(int sessionId)
 	pl->getPosition() = { 0,0 };
 	pl->m_id = sessionId;
 	m_players[sessionId] = pl;
+
+	if(m_player_positions.find(name)!=m_player_positions.end())
+	{
+		pl->getPosition() = m_player_positions[name];
+	}
 }
 
-void World::destroyPlayer(int sessionId)
+void World::destroyPlayer(int sessionId,const std::string& name)
 {
 	if (m_players.find(sessionId) == m_players.end())
 		return;
-	delete m_players[sessionId];
+	auto& p = m_players[sessionId];
+	m_player_positions[name] = p->getPosition();
+	delete p;
 	m_players.erase(m_players.find(sessionId));
 }
 
@@ -200,6 +207,17 @@ void World::saveWorld()
 	m_nbt_saver.flushWrite();
 	m_nbt_saver.endSession();
 	ND_TRACE("Saving world finished");
+
+	std::ofstream o(m_file_path+"_playerPos.json");
+	json j;
+	for (auto&[name,pos]:m_player_positions)
+	{
+		json u;
+		u[0] = pos.x;
+		u[1] = pos.x;
+		j[name] = u;
+	}
+	o << j;
 }
 
 bool World::loadWorld()
@@ -225,6 +243,27 @@ bool World::loadWorld()
 	}
 	m_nbt_saver.read(m_info);
 	m_nbt_saver.endSession();
+
+	// parse player positions
+	try {
+		std::ifstream i(m_file_path + "_playerPos.json");
+		json j;
+		i >> j;
+
+		for (auto& w : j.items())
+		{
+			auto name = w.key();
+			json u = w.value();
+			glm::vec2 p;
+			p.x = u[0];
+			p.y = u[1];
+			m_player_positions.emplace(std::make_pair(name, p));
+		}
+	}catch (...)
+	{
+		ND_WARN("Could not parse player positions");
+		m_player_positions.clear();
+	}
 	return true;
 }
 
@@ -238,62 +277,6 @@ constexpr int maskAllSides = maskUp | maskDown | maskLeft | maskRight;
 //chunk was only loaded by thread, no gen neccessary
 
 static defaultable_map<ChunkID, bool, false> CHUNK_MAP;
-
-// calls genchunks2 with promise:
-//		all chunks in toLoadChunks	are valid
-//		have their header and space
-//		have GENERATED or BEING_LOADED state
-//		maskGen which should be generated
-//		maskFreshlyOnlyLoaded should load their entities
-
-
-void World::updateChunkBounds(BlockAccess& world, int cx, int cy, int bitBounds)
-{
-	auto& c = *world.getChunkM(cx, cy);
-	int wx = c.m_x * WORLD_CHUNK_SIZE;
-	int wy = c.m_y * WORLD_CHUNK_SIZE;
-	if ((bitBounds & maskUp) != 0)
-		for (int x = 0; x < WORLD_CHUNK_SIZE; x++)
-		{
-			auto& block = c.block(x, WORLD_CHUNK_SIZE - 1);
-			auto worldx = wx + x;
-			auto worldy = wy + WORLD_CHUNK_SIZE - 1;
-			BlockRegistry::get().getBlock(block.block_id).onNeighborBlockChange(world, worldx, worldy);
-			if (block.isWallFullyOccupied())
-				BlockRegistry::get().getWall(block.wallID()).onNeighbourWallChange(world, worldx, worldy);
-		}
-	if ((bitBounds & maskDown) != 0)
-		for (int x = 0; x < WORLD_CHUNK_SIZE; x++)
-		{
-			auto& block = c.block(x, 0);
-			auto worldx = wx + x;
-			auto worldy = wy;
-			BlockRegistry::get().getBlock(block.block_id).onNeighborBlockChange(world, worldx, worldy);
-			if (block.isWallFullyOccupied())
-				BlockRegistry::get().getWall(block.wallID()).onNeighbourWallChange(world, worldx, worldy);
-		}
-	if ((bitBounds & maskLeft) != 0)
-		for (int y = 0; y < WORLD_CHUNK_SIZE; y++)
-		{
-			auto& block = c.block(0, y);
-			auto worldx = wx;
-			auto worldy = wy + y;
-			BlockRegistry::get().getBlock(block.block_id).onNeighborBlockChange(world, worldx, worldy);
-			if (block.isWallFullyOccupied())
-				BlockRegistry::get().getWall(block.wallID()).onNeighbourWallChange(world, worldx, worldy);
-		}
-	if ((bitBounds & maskRight) != 0)
-		for (int y = 0; y < WORLD_CHUNK_SIZE; y++)
-		{
-			auto& block = c.block(WORLD_CHUNK_SIZE - 1, y);
-			auto worldx = wx + WORLD_CHUNK_SIZE - 1;
-			auto worldy = wy + y;
-			BlockRegistry::get().getBlock(block.block_id).onNeighborBlockChange(world, worldx, worldy);
-			if (block.isWallFullyOccupied())
-				BlockRegistry::get().getWall(block.wallID()).onNeighbourWallChange(world, worldx, worldy);
-		}
-}
-
 
 //=========================BLOCKS==========================
 

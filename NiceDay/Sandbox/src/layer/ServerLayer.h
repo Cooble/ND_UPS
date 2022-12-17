@@ -128,6 +128,7 @@ private:
 	// if it reaches zero, server stops
 	// add a little time to inform everyone about this thing
 	int m_death_counter = -1;
+	int m_max_players;
 
 public:
 	// getters
@@ -136,7 +137,7 @@ public:
 public:
 
 	// CONSTRUCTOR
-	ServerLayer(const std::string& name, int port, nd::net::Address lobbyAddress);
+	ServerLayer(const std::string& name, int port, nd::net::Address lobbyAddress, int maxPlayers);
 
 	// MAIN
 	void onAttach() override;

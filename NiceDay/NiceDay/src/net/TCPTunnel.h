@@ -15,8 +15,8 @@ struct SegmentPacket : Serializable
 {
 	int action;
 	ClientID channelId;
-	size_t packetId;
-	size_t memoryIdx;
+	int packetId;
+	int memoryIdx;
 
 	bool deserialize(NetReader& reader)
 	{
@@ -118,6 +118,7 @@ public:
 	std::vector<Pac> m_in_window;
 	std::vector<Pac> m_out_window;
 
+	bool m_is_handshaken = false;
 	Pac m_current_write;
 	AckPacket m_current_ack;
 	Address m_address;

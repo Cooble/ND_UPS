@@ -56,9 +56,6 @@ inline const char* ProtStrings[128] = {
 	"Invitation		",
 	"InvitationACK	",
 	"SessionCreated	",
-	"MigrateREQ		",
-	"MigrateWait	",
-	"MigratedACK	",
 	"Ping			",
 	"Pong			",
 	"ClusterPing	",
@@ -125,6 +122,7 @@ struct SessionProtocol : ProtocolHeader
 
 constexpr int EstablishConnectionProtocol_STRING_LENGTH = 32;
 
+// if action==InvReq -> value inside session_id is guaranteed not to be returned as invitation id
 struct EstablishConnectionProtocol : SessionProtocol
 {
 	std::string player, server;

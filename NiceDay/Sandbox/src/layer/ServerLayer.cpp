@@ -65,11 +65,13 @@ nd::net::TCPTunnel& ServerLayer::tun(SessionID id)
 }
 
 ServerLayer::ServerLayer(const std::string& name, int port,
-                         nd::net::Address lobbyAddress): m_lobby_address(lobbyAddress), m_port(port)
+                         nd::net::Address lobbyAddress, int maxPlayers): m_lobby_address(lobbyAddress), m_port(port),
+                                                                         m_max_players(maxPlayers)
 {
 	m_name = name;
 	m_big_udp_message.buffer.reserve(1500);
 }
+
 
 void ServerLayer::onAttach()
 {
@@ -243,12 +245,12 @@ void ServerLayer::updateTCP(nd::net::Message& m)
 void ServerLayer::updateHopTimeout(nd::net::Message& m)
 {
 	auto now = nd::nowTime();
-	for(auto& [session,info]:m_player_book)
+	for (auto& [session,info] : m_player_book)
 	{
-		if(!info.hopTime)
+		if (!info.hopTime)
 			continue;
 
-		if(now-info.hopTime>server_const::HOP_TIMEOUT)
+		if (now - info.hopTime > server_const::HOP_TIMEOUT)
 		{
 			info.hopTime = 0;
 			sendCommand(m, session, "server", "Hop Server not responding");
@@ -264,8 +266,6 @@ void ServerLayer::updateCryForAttention()
 
 	sendClusterPong(m_lobby_address);
 }
-
-
 
 void ServerLayer::updateCheckTimeout(nd::net::Message& m)
 {
@@ -364,7 +364,26 @@ void ServerLayer::onInvReq(nd::net::Message& m)
 		return; //already here with same name
 	}
 
-	SessionID invitationId = m_session_ids.contains(h.player) ? m_session_ids[h.player] : allocateNewSessionID();
+	SessionID invitationId;
+	if (m_session_ids.contains(h.player))
+	{
+		invitationId = m_session_ids[h.player];
+	}
+	else
+	{
+		if (m_max_players > 0 && m_player_book.size() == m_max_players)
+		{
+			ND_WARN("InvREQ: Player {} cannot join server which is full!", h.player);
+			sendError(m, h.player, "Refused to connect: Server is full");
+			return;
+		}
+		invitationId = allocateNewSessionID();
+		if (h.session_id == invitationId)
+			invitationId = allocateNewSessionID();
+	}
+
+	// prevent new session id to be same as in EstablishConnectionProtocol
+
 
 	m_session_ids[h.player] = invitationId;
 	auto& info = m_player_book[invitationId];
@@ -425,6 +444,7 @@ void ServerLayer::onInvACK(nd::net::Message& m)
 	ND_INFO("InvACK: Client: {} (re)obtained session ID: {}", m.address.toString(), info.session_id);
 	ND_TRACE("InvACK: Sending SessionCreated to {} on {}", h.player, m.address.toString());
 }
+
 void ServerLayer::onInvitation(nd::net::Message& m)
 {
 	EstablishConnectionProtocol h;
@@ -433,18 +453,18 @@ void ServerLayer::onInvitation(nd::net::Message& m)
 		ND_WARN("InvACK: Could not parse");
 		return;
 	}
-	if(!m_session_ids.contains(h.player))
+	if (!m_session_ids.contains(h.player))
 	{
 		ND_WARN("Received invitation from other server for player that does net exist {} ", h.player);
 		return;
 	}
 	auto& info = m_player_book[m_session_ids[h.player]];
-	if(!info.isValid)
+	if (!info.isValid)
 	{
 		ND_WARN("Received invitation from other server for player who is invalid {} ", h.player);
 		return;
 	}
-	if(info.hopTime==0)
+	if (info.hopTime == 0)
 	{
 		ND_WARN("Received invitation from other server, but is already past timeout ", h.player);
 		return;
@@ -474,7 +494,7 @@ void ServerLayer::onPlayerConnected(nd::net::Message& m, PlayerInfo& info)
 	//create tcp tunnel
 	m_tunnels.try_emplace(info.session_id, m_socket, m.address, info.session_id, 5000);
 	ND_TRACE("Opening TCP tunnel to the player {}", info.name);
-	m_world->createPlayer(info.session_id);
+	m_world->createPlayer(info.session_id,info.name);
 
 	// Send player state change to all players,
 	// once again we are sending flying instead of connect, just to include more information
@@ -581,7 +601,7 @@ void ServerLayer::onCommand(nd::net::Message& m)
 			}
 			auto& serverName = words[1];
 			ND_INFO("Command: Received hop to {}", serverName);
-			hop(m,h.session_id, serverName);
+			hop(m, h.session_id, serverName);
 		}
 		else if (cmd == "fly")
 		{
@@ -767,7 +787,7 @@ void ServerLayer::disconnectClient(nd::net::Message& m, SessionID id, std::strin
 	if (m_tunnels.find(id) != m_tunnels.end())
 		m_tunnels.erase(m_tunnels.find(id));
 
-	m_world->destroyPlayer(iter->second.session_id);
+	m_world->destroyPlayer(iter->second.session_id,iter->second.name);
 	m_player_book.erase(iter);
 }
 
@@ -986,9 +1006,8 @@ void ServerLayer::hop(Message& m, SessionID sessionId, const std::string& server
 	p.player = info.name;
 	p.server = serverName;
 	p.action = Prot::InvitationREQ;
-
+	p.session_id = sessionId; // this id cannot be used on other server
 	NetWriter(m.buffer).put(p);
 	m.address = m_lobby_address;
 	send(m_socket, m);
-
 }

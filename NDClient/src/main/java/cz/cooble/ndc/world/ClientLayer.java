@@ -419,7 +419,6 @@ public class ClientLayer extends Layer {
             }
         while (tunnel != null && tunnel.read(m)) {
             try {
-                System.out.println("received tcp: " + new String(m.buffer.data()));
                 onPacketReceived(m);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -493,7 +492,6 @@ public class ClientLayer extends Layer {
             }
         }
     }
-
 
     public boolean isSessionCreated() {
         return isSessionCreated;

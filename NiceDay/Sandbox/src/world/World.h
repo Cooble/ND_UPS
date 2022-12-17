@@ -114,6 +114,7 @@ private:
 	nd::DynamicSaver m_nbt_saver;
 
 	std::unordered_map<int, EntityPlayer*> m_players;
+	std::unordered_map<std::string, glm::vec2> m_player_positions;
 
 private:
 	void init();
@@ -133,8 +134,8 @@ public:
 
 	void onUpdate();
 
-	void createPlayer(int sessionId);
-	void destroyPlayer(int sessionId);
+	void createPlayer(int sessionId,const std::string& name);
+	void destroyPlayer(int sessionId, const std::string& name);
 	EntityPlayer* getPlayer(int sessionId);
 
 
@@ -181,8 +182,6 @@ public:
 
 	// returns true if success
 	bool loadWorld();
-
-	static void updateChunkBounds(BlockAccess& world, int cx, int cy, int bitBounds);
 
 	static int toChunkCoord(float wx) { return toChunkCoord((int)wx); }
 	static int toChunkCoord(int wx) { return wx >> WORLD_CHUNK_BIT_SIZE; }

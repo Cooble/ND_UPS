@@ -174,10 +174,12 @@ bool LobbyServerLayer::createBasicServers()
     "ip": "127.0.0.1",
 	"worlds":{
 		"overworld":{
-				"port": 1230
+				"port": 1230,
+				"playerLimit":0
 			},
 		"nether":{
-				"port": 1231
+				"port": 1231,
+				"playerLimit":0
 			}
 	}
 }
@@ -200,12 +202,12 @@ bool LobbyServerLayer::createBasicServers()
 	}
 	ND_INFO("Lobby server settings loaded: {}", m_address.toString());
 
-	std::vector<std::pair<std::string, nd::net::Address>> servers;
+	std::vector<std::tuple<std::string, nd::net::Address,int>> servers;
 
 	auto& worlds = j["worlds"];
 	if (worlds.empty())
 	{
-		servers.emplace_back("overworld", nd::net::Address("0.0.0.0", WORLD_SERVER_0_PORT));
+		servers.emplace_back("overworld", nd::net::Address("0.0.0.0", WORLD_SERVER_0_PORT),0);
 	}
 	else
 		for (auto& w : worlds.items())
@@ -218,16 +220,17 @@ bool LobbyServerLayer::createBasicServers()
 				ND_ERROR("Invalid port number encountered during settings load.");
 				return false;
 			}
-			servers.emplace_back(name, ad);
+			auto playerLimit = w.value().value("playerLimit", 0);
+			servers.emplace_back(name, ad,playerLimit);
 		}
 
-	for (auto& [string,address] : servers)
+	for (auto& [string,address,playerLimit] : servers)
 	{
 		ND_INFO("Lobby: Creating Server: {}", address.toString());
-		m_cluster.startServer(new ServerLayer(string, address.port(), m_address));
+		m_cluster.startServer(new ServerLayer(string, address.port(), m_address, playerLimit));
 	}
 	// dont forget to set first server as gateway
-	GATEWAY = servers[0].first;
+	GATEWAY = servers[0]._Myfirst._Val;
 	return true;
 }
 

@@ -1,5 +1,6 @@
 package cz.cooble.ndc.world;
 
+import cz.cooble.ndc.Globals;
 import cz.cooble.ndc.core.App;
 import cz.cooble.ndc.core.Utils;
 import cz.cooble.ndc.net.*;
@@ -20,7 +21,6 @@ import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
 
 public class ClientLayer extends Layer {
 
-
     private InetSocketAddress lobbyAddress;
     private Socket socket;
     private TCPTunnel tunnel;
@@ -40,7 +40,7 @@ public class ClientLayer extends Layer {
     private Timeout t = new Timeout();
 
     //private Timeout.Pocket serverTimeout = new Timeout.Pocket(2000);
-    private Timeout.Pocket serverTimeout = new Timeout.Pocket(2000);
+    private Timeout.Pocket serverTimeout = new Timeout.Pocket(Globals.SERVER_TIMEOUT);
 
     private Set<Integer> pendingPieces;
 
@@ -158,7 +158,8 @@ public class ClientLayer extends Layer {
         for (var e : playerMoveEvents) {
             e.serialize(new NetWriter(m.buffer));
             //System.out.println("[Sending_Move] eventId:" + e.event_id + " pos:" + e.pos.toString() + " input:" + e.inputs.toString());
-            socket.send(m);
+            if (!Globals.DISABLE_MOVE)
+                socket.send(m);
         }
         playerMoveEvents.clear();
     }
@@ -210,7 +211,7 @@ public class ClientLayer extends Layer {
         // chunk already exists, new piece
         else if (chunkBuffer.chunkID() == half_int(a.c_x, a.c_y)) {
             chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
-            System.out.println("Piece " + a.piece + " deserialized");
+            //System.out.println("Piece " + a.piece + " deserialized");
             pendingPieces.remove(a.piece);
 
             //reset timeout for asking explicitly for another piece
@@ -296,8 +297,7 @@ public class ClientLayer extends Layer {
             } else if (a.action == Prot.SessionCreated) {
                 onSessionCreated(m);
             }
-        }
-        else {
+        } else {
             //packets allowed only after session is created
             if (a.action == Prot.ChunkACK) {
                 onChunkACK(m);
@@ -383,10 +383,9 @@ public class ClientLayer extends Layer {
             }
         while (tunnel != null && tunnel.read(m)) {
             try {
-                System.out.println("received tcp: "+new String(m.buffer.data()));
+                System.out.println("received tcp: " + new String(m.buffer.data()));
                 onPacketReceived(m);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 errorMessage = "Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println(errorMessage);

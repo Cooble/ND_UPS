@@ -369,7 +369,8 @@ void ServerLayer::onInvACK(nd::net::Message& m)
 	// invitation id does not match
 	if (h.session_id != info.session_id)
 	{
-		ND_WARN("InvACK: session ids for player {} do not match (server:{},client:{})", h.player, info.session_id,h.session_id);
+		ND_WARN("InvACK: session ids for player {} do not match (server:{},client:{})", h.player, info.session_id,
+		        h.session_id);
 		return;
 	}
 	info.updateLife();
@@ -406,9 +407,9 @@ void ServerLayer::onPlayerConnected(nd::net::Message& m, PlayerInfo& info)
 	// send states of all connected players to player.
 	// we are sending fly instead of connect, because if fly is received, player must be already connected
 	auto& tunnel = m_tunnels.find(info.session_id)->second;
-	for(auto&[session,in]:m_player_book)
+	for (auto& [session,in] : m_player_book)
 	{
-		if(!in.isValid)
+		if (!in.isValid || session == info.session_id)
 			continue;
 
 		auto p = m_world->getPlayer(session);
@@ -493,7 +494,7 @@ void ServerLayer::onCommand(nd::net::Message& m)
 			auto pl = m_world->getPlayer(h.session_id);
 
 			pl->setFly(!pl->isFlying());
-			ND_INFO("Command: Toggled fly for {} to {}", m_player_book[h.session_id].name,pl->isFlying());
+			ND_INFO("Command: Toggled fly for {} to {}", m_player_book[h.session_id].name, pl->isFlying());
 
 			// dont forget to tell all clients that this client is flying
 			PlayerState changeState;
@@ -649,7 +650,8 @@ void ServerLayer::disconnectClient(nd::net::Message& m, SessionID id, std::strin
 		broadcastTCPMessage(m);
 
 		// chat message
-		std::string disconnectMessage = "Player " + m_player_book[id].name + " has departed for a better place. May he rest in peace";
+		std::string disconnectMessage = "Player " + m_player_book[id].name +
+			" has departed for a better place. May he rest in peace";
 		broadcastCommand(m, "server", disconnectMessage, id);
 	}
 
@@ -851,7 +853,9 @@ void ServerLayer::sendMoves(Message& m)
 		if (!info.isValid)
 			continue;
 		m.address = info.address;
-		send(m_socket, m);
+
+		if constexpr (!server_const::DISABLE_MOVE)
+			send(m_socket, m);
 	}
 }
 

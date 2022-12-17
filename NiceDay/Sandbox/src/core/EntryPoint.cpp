@@ -32,7 +32,7 @@ int main()
 	layer.onAttach();
 
 
-	size_t millisPerTick = 1000 / server_const::TPS;
+	size_t millisPerTick = server_const::TPS_MILLIS;
 
 	while (!layer.isClosePending())
 	{

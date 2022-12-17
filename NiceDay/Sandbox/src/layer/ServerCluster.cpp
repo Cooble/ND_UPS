@@ -1,6 +1,7 @@
 ﻿#include "ServerCluster.h"
 
 #include "ServerLayer.h"
+#include "server_constants.h"
 
 ServerCluster::ServerInstance::~ServerInstance()
 {
@@ -22,7 +23,7 @@ static void exact_sleep_for(double dt)
 
 void ServerCluster::serverLoop(std::shared_ptr<ServerInstance> server)
 {
-	size_t millisPerTick = 1000 / TPS;
+	size_t millisPerTick = server_const::TPS_MILLIS;
 
 	do
 	{

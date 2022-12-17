@@ -213,8 +213,6 @@ public class WorldLayer extends Layer {
         System.out.println("Player state change " + state.type.name() + " valu: " + state.value + " for player " + state.name);
         if (state.type == PlayerState.Type.Fly) {
             var p  = world.getPlayerOrNew(state.name);
-            if (p == null)
-                return;
             p.setFlying(state.value);
         } else if (state.type == PlayerState.Type.Connect) {
             if (state.value) {

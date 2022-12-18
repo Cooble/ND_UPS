@@ -101,7 +101,6 @@ public class Chunk {
             b.block_corner = d.get();
             d.get();//last padding byte
         }
-        int i = 0;
     }
 
     public void serialize(ByteBuffer d) {

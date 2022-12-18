@@ -211,7 +211,7 @@ public class WorldLayer extends Layer {
 
         String s;
         while ((s = client.getNewCommand()) != null)
-            console.addLine(s);
+            console.addLines(s);
 
         console.update();
 

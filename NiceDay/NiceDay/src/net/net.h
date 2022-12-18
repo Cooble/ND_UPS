@@ -51,9 +51,13 @@ struct Socket
 	SocketID m_sock;
 	Address m_address;
 
+	int m_received_count=0;
+	int m_sent_count=0;
+	int m_received_bytes = 0;
+	int m_sent_bytes = 0;
+
 	bool operator==(std::vector<Socket>::const_reference socket) const
 	{
-		// todo make proper equal
 		return m_sock == socket.m_sock;
 	}
 };
@@ -194,7 +198,7 @@ private:
 	bool string_error;
 public:
 	// true if readString could not read another string
-	// empty string is not an error, no space in buffer is
+	// empty string is not an error, no more space in buffer is
 	bool isStringError() const { return string_error; }
 
 	std::string readStringUntilNull(int maxSize)
@@ -239,11 +243,13 @@ struct Message
 	Address address;
 	Buffer buffer;
 };
-
+// must be called before any socket madness is used by program
 NetResponseFlags_ init();
-void deinit();
+
+// closes all sockets opened by current thread
+void deInit();
 NetResponseFlags_ createSocket(Socket&, const CreateSocketInfo&);
 NetResponseFlags_ closeSocket(Socket&);
-NetResponseFlags_ receive(const Socket&, Message&);
-NetResponseFlags_ send(const Socket&, const Message&);
+NetResponseFlags_ receive(Socket&, Message&);
+NetResponseFlags_ send(Socket&, const Message&);
 };

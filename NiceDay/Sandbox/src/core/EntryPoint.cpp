@@ -1,11 +1,11 @@
-
 #include "layer/LobbyServerLayer.h"
 #include "layer/server_constants.h"
 #include "net/net.h"
 #include "net/net_iterator.h"
 #include "world/WorldIO.h"
-#ifndef ND_TEST
+#include <signal.h>
 
+#ifndef ND_TEST
 
 
 // To enable tcp tunnel testing uncomment following line
@@ -15,8 +15,18 @@
 #include "TestTCPTunnel.h"
 #endif
 
+static volatile bool sigint = false;
+static void signal_callback_handler(int)
+{
+	std::cout << "Catch sigint"<<std::endl;
+	sigint = true;
+}
+
+
 int main()
 {
+	signal(SIGINT, signal_callback_handler);
+
 	using namespace nd;
 	Log::init();
 
@@ -26,7 +36,6 @@ int main()
 #endif
 
 
-	
 	LobbyServerLayer layer;
 
 	layer.onAttach();
@@ -34,7 +43,7 @@ int main()
 
 	size_t millisPerTick = server_const::TPS_MILLIS;
 
-	while (!layer.isClosePending())
+	while (!layer.isClosePending() && !sigint)
 	{
 		auto time = nowTime();
 		layer.onUpdate();

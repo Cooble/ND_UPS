@@ -13,7 +13,7 @@
 
 namespace nd::net
 {
-std::vector<Socket> s_sockets;
+thread_local std::vector<Socket> s_sockets;
 
 Address::Address(const std::string& ip, int port)
 
@@ -103,13 +103,13 @@ NetResponseFlags_ init()
 	return NetResponseFlags_Success;
 }
 
-void deinit()
+void deInit()
 {
 	while (!s_sockets.empty())
 		closeSocket(s_sockets[0]);
 }
 
-int findSocket(const Socket& s)
+static int findSocket(const Socket& s)
 {
 	for (int i = 0; i < s_sockets.size(); ++i)
 		if (s_sockets[i] == s)
@@ -127,8 +127,6 @@ NetResponseFlags_ createSocket(Socket& s, const CreateSocketInfo& info)
 	}
 
 	/* Construct the server sockaddr_in structure */
-
-
 	s.m_address = Address(INADDR_ANY, info.port);
 
 	/* Bind the socket */
@@ -152,7 +150,6 @@ NetResponseFlags_ createSocket(Socket& s, const CreateSocketInfo& info)
 	}
 
 	ND_INFO("Socket opened on port {}", info.port);
-
 	s_sockets.push_back(s);
 	return NetResponseFlags_Success;
 }
@@ -161,18 +158,17 @@ NetResponseFlags_ createSocket(Socket& s, const CreateSocketInfo& info)
 NetResponseFlags_ closeSocket(Socket& s)
 {
 	int socketid = findSocket(s);
-
 	if (socketid == -1)
 	{
-		ND_WARN("Attempt at closing non existing socket");
+		ND_WARN("Attempt to close non existing socket");
 		return NetResponseFlags_Error;
 	}
-	s_sockets.erase(s_sockets.begin() + socketid);
 #ifdef ND_PLATFORM_WINDOWS
 	closesocket(s.m_sock);
 #else
 	close(s.m_sock);
 #endif
+	s_sockets.erase(s_sockets.begin() + socketid);
 	return NetResponseFlags_Success;
 }
 
@@ -182,29 +178,34 @@ typedef int sock_address_size;
 typedef socklen_t sock_address_size;
 #endif
 
-NetResponseFlags_ receive(const Socket& socket, Message& message)
+NetResponseFlags_ receive(Socket& socket, Message& m)
 {
-	sock_address_size SenderAddrSize = sizeof(message.address.src);
+	sock_address_size SenderAddrSize = sizeof(m.address.src);
 
-	int received = recvfrom(socket.m_sock, message.buffer.data(), message.buffer.capacity(), 0,
-	                        (sockaddr*)&message.address.src, &SenderAddrSize);
+	int received = recvfrom(socket.m_sock, m.buffer.data(), m.buffer.capacity(), 0,
+	                        (sockaddr*)&m.address.src, &SenderAddrSize);
 
 	if (received != -1 /* || received != ERROR_TIMEOUT*/)
 	{
-		message.buffer.setSize(received);
+		m.buffer.setSize(received);
+		socket.m_received_count++;
+		socket.m_received_bytes += m.buffer.size();
 		return NetResponseFlags_Success;
 	}
 	return NetResponseFlags_Error;
 }
 
-NetResponseFlags_ send(const Socket& s, const Message& m)
+NetResponseFlags_ send(Socket& s, const Message& m)
 {
 	if (sendto(s.m_sock, m.buffer.data(), m.buffer.size(), 0, (const sockaddr*)&m.address.src,
 	           sizeof(m.address.src)) == -1)
 	{
-		ASSERT(false, "Error during sending to address {}", m.address.toString());
+		ND_WARN("Error during sending to address {}", m.address.toString());
+		//ASSERT(false, "Error during sending to address {}", m.address.toString());
 		return NetResponseFlags_Error;
 	}
+	s.m_sent_count++;
+	s.m_sent_bytes += m.buffer.size();
 	return NetResponseFlags_Success;
 }
 }

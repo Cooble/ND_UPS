@@ -104,6 +104,7 @@ void ServerLayer::onDetach()
 	closeSocket();
 	m_world->saveWorld();
 	delete m_world;
+	m_world = nullptr;
 }
 
 bool ServerLayer::isValidSession(SessionID id)
@@ -120,6 +121,27 @@ void ServerLayer::sendError(nd::net::Message& m, const std::string& player, cons
 	send(m_socket, m);
 }
 
+std::string ServerLayer::buildStats()
+{
+	std::stringstream s;
+	s << "======= Server Stats =======";
+	s << "\nServer Name: ";
+	s << m_name;
+	s << "\nPlayers Connected: ";
+	s << std::to_string(m_player_book.size());
+	s << "/";
+	s << ((m_max_players > 0) ? std::to_string(m_max_players) : "Unlimited");
+	s << "\nPackets/bytes sent: ";
+	s << m_socket.m_sent_count;
+	s << "/";
+	s << m_socket.m_sent_bytes;
+	s << "\nPackets/bytes received: ";
+	s << m_socket.m_received_count;
+	s << "/";
+	s << m_socket.m_received_bytes;
+	return s.str();
+}
+
 // ================ON UPDATE========================
 void ServerLayer::onUpdate()
 {
@@ -131,9 +153,6 @@ void ServerLayer::onUpdate()
 	Message& m = m_big_udp_message;
 	updateCheckTimeout(m);
 	updateHopTimeout(m);
-
-	//prepare new space for possible move events from players 
-	prepareMove();
 
 	// poll udp
 	updateUDP(m);
@@ -151,8 +170,6 @@ void ServerLayer::onUpdate()
 		applyMoves();
 		sendMoves(m);
 	}
-
-	m_log.clear();
 }
 
 void ServerLayer::updateUDP(nd::net::Message& m)
@@ -494,7 +511,7 @@ void ServerLayer::onPlayerConnected(nd::net::Message& m, PlayerInfo& info)
 	//create tcp tunnel
 	m_tunnels.try_emplace(info.session_id, m_socket, m.address, info.session_id, 5000);
 	ND_TRACE("Opening TCP tunnel to the player {}", info.name);
-	m_world->createPlayer(info.session_id,info.name);
+	m_world->createPlayer(info.session_id, info.name);
 
 	// Send player state change to all players,
 	// once again we are sending flying instead of connect, just to include more information
@@ -618,6 +635,12 @@ void ServerLayer::onCommand(nd::net::Message& m)
 			NetWriter(m.buffer).put(changeState);
 			broadcastTCPMessage(m);
 		}
+		else if (cmd == "stats")
+		{
+			auto b = buildStats();
+			sendCommand(m, h.session_id, "server", b);
+			ND_INFO("Command: Received Request for stats");
+		}
 		else if (nd::SUtil::startsWith(cmd, "echo "))
 		{
 			std::string e = cmd.substr(strlen("echo "));
@@ -661,33 +684,60 @@ void ServerLayer::onBlockModify(nd::net::Message& m, SessionID session)
 	}
 	bool gut = true;
 
-	if (h.blockOrWall)
+	auto before = m_world->getBlock(h.x, h.y);
+
+	// check if block position is valid
+	if (!before)
 	{
-		BlockStruct b{h.block_id};
-		BlockStruct before = *m_world->getBlock(h.x, h.y);
-
-		int oldCollisionCount = playerCollisionCount();
-		m_world->setBlockWithNotify(h.x, h.y, b);
-
-		// after placing block, check if no player collision exist, if exist lets place previous block
-		if (oldCollisionCount < playerCollisionCount())
+		gut = false;
+	}
+	else
+	{
+		if (h.blockOrWall)
 		{
-			m_world->setBlockWithNotify(h.x, h.y, before);
-			gut = false;
+			BlockStruct b{h.block_id};
+
+			// check if block id is valid
+			if (!BlockRegistry::get().getBlockP(h.block_id))
+			{
+				ND_WARN("Invalid block {}", h.block_id);
+				gut = false;
+			}
+			else
+			{
+				int oldCollisionCount = playerCollisionCount();
+				m_world->setBlockWithNotify(h.x, h.y, b);
+
+				// after placing block, check if no player collision exist, if exist lets place previous block
+				if (oldCollisionCount < playerCollisionCount())
+				{
+					auto bb = *before;
+					m_world->setBlockWithNotify(h.x, h.y, bb);
+					gut = false;
+				}
+			}
+		}
+		else
+		{
+			//check if wall id is valid
+			if (BlockRegistry::get().getWallP(h.block_id))
+			{
+				m_world->setWallWithNotify(h.x, h.y, h.block_id);
+			}
+			else
+			{
+				ND_WARN("Invalid wall id {}", h.block_id);
+				gut = false;
+			}
 		}
 	}
 
-	else
-	{
-		m_world->setWallWithNotify(h.x, h.y, h.block_id);
-	}
-
-	// Send positive feedback that block was successfully changed
+	// Send positive or negative feedback that block was successfully changed or not
 	BlockAck ack;
 	ack.event_id = h.event_id;
 	ack.gut = gut;
 	NetWriter(m.buffer).put(ack);
-	m_tunnels.find(session)->second.write(m);
+	tun(session).write(m);
 
 	if (!ack.gut)
 	{
@@ -695,7 +745,7 @@ void ServerLayer::onBlockModify(nd::net::Message& m, SessionID session)
 		return;
 	}
 
-	// DONT! in million years: zero event id to hide what sender used, also this information is no longer necessary
+	// send all players info about block placement using tcp
 	h.event_id = 789; //dont use zero
 	NetWriter(m.buffer).put(h);
 	for (auto& [s, tunnel] : m_tunnels)
@@ -787,7 +837,7 @@ void ServerLayer::disconnectClient(nd::net::Message& m, SessionID id, std::strin
 	if (m_tunnels.find(id) != m_tunnels.end())
 		m_tunnels.erase(m_tunnels.find(id));
 
-	m_world->destroyPlayer(iter->second.session_id,iter->second.name);
+	m_world->destroyPlayer(iter->second.session_id, iter->second.name);
 	m_player_book.erase(iter);
 }
 
@@ -852,18 +902,6 @@ void ServerLayer::sendCommand(nd::net::Message& m, SessionID id, const std::stri
 	m_tunnels.find(id)->second.write(m);
 }
 
-void ServerLayer::prepareMove()
-{
-	//ND_TRACE("PreparingMoves");
-	for (auto& [session, info] : m_player_book)
-	{
-		if (!info.isValid)
-			return;
-
-		// insert empty input representing no presses
-		//info.moves.inputs.push_back({});
-	}
-}
 
 void ServerLayer::applyMoves()
 {

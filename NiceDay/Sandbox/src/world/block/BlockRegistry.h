@@ -50,6 +50,10 @@ public:
 	void registerWall(Wall* wall);
 
 
+	const Block* getBlockP(BlockID block_id);
+	const Wall* getWallP(int wall_id);
+
+
 	const Block& getBlock(BlockID block_id);
 
 	const Wall& getWall(int wall_id);

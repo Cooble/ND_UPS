@@ -5,6 +5,7 @@
 
 ServerCluster::ServerInstance::~ServerInstance()
 {
+	delete server;
 	thread.join();
 }
 
@@ -50,9 +51,6 @@ void ServerCluster::serverLoop(std::shared_ptr<ServerInstance> server)
 	while (server->server->shouldRestart());
 
 	m_to_remove.push_back(server);
-	m_servers.erase(m_servers.find(SID(server->server->getName())));
-	delete server->server;
-	server->server = nullptr;
 }
 
 void ServerCluster::startServer(ServerLayer* server)
@@ -67,8 +65,12 @@ void ServerCluster::startServer(ServerLayer* server)
 void ServerCluster::update()
 {
 	while (!m_to_remove.empty())
-		if (!m_to_remove[0]->server)
-			m_to_remove.erase(m_to_remove.begin());
+	{
+		auto server = m_to_remove[0];
+		m_to_remove.erase(m_to_remove.begin());
+		m_servers.erase(m_servers.find(SID(server->server->getName())));
+		// and with this server destructor is called -> joins thread
+	}
 }
 
 void ServerCluster::stopServer(ServerLayer* server)
@@ -80,9 +82,10 @@ void ServerCluster::stopServer(ServerLayer* server)
 
 ServerCluster::~ServerCluster()
 {
-	for (auto& it : m_servers)
+	for (auto it : m_servers)
 		it.second->closePending = true;
 
-	for (auto& it : m_servers)
-		it.second->thread.join();
+	// wait until all threads end, and join them
+	while (m_servers.size())
+		update();
 }

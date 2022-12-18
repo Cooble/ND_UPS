@@ -30,7 +30,7 @@ public class GuiConsole implements BatchRenderable2D {
     TextMesh textMeshLine;
 
     public static final int LINE_TIMEOUT = 10000;
-    public static final int MAX_LINES = 10;
+    public static final int MAX_LINES = 15;
 
     List<Pair<String, Timeout.Pocket>> lines = new ArrayList<>();
     private String currentLine = "";
@@ -172,5 +172,11 @@ public class GuiConsole implements BatchRenderable2D {
     public void openEditMode() {
         editMode = true;
         currentLine = "";
+    }
+
+    public void addLines(String s) {
+        var lines = s.split("\n");
+        for(var l:lines)
+            addLine(l);
     }
 }

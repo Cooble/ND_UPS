@@ -1,5 +1,6 @@
 package cz.cooble.ndc.net;
 
+import javax.xml.crypto.dsig.SignatureMethod;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -8,13 +9,16 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
+import java.util.Random;
 
+import static cz.cooble.ndc.Globals.SIMULATE_PACKET_LOSS;
 import static cz.cooble.ndc.net.Net.byteBufferAllocate;
 
 public class Socket {
     DatagramChannel channel;
     Selector selector;
     InetSocketAddress address;
+    long packet_loss;
 
     static class ClientRecord {
         public SocketAddress clientAddress;
@@ -35,7 +39,8 @@ public class Socket {
             throw new RuntimeException(e);
         }
     }
-    public int port(){
+
+    public int port() {
         return channel.socket().getLocalPort();
     }
 
@@ -56,12 +61,17 @@ public class Socket {
         if (clntRec.clientAddress != null) {  // Did we receive something?
             // Register write with the selector
             //key.interestOps(SelectionKey.OP_WRITE);
+
+
             m.buffer.setSize(m.buffer.getInner().position());
             m.address = (InetSocketAddress) clntRec.clientAddress;
             return NetResponseFlags.Success;
         }
         return NetResponseFlags.Error;
     }
+
+    static Random r = new Random();
+
     public NetResponseFlags receive(Message m) {
         try {
             if (selector.selectNow() == 0)
@@ -76,15 +86,17 @@ public class Socket {
                 if (key.isReadable()) {
                     var response = receiveByKey(key, m);
                     keyIter.remove();
-                    if (response == NetResponseFlags.Success)
+                    if (response == NetResponseFlags.Success) {
+                        if (SIMULATE_PACKET_LOSS != 0) {
+                            //packet_loss++;
+                            if (r.nextInt((int) SIMULATE_PACKET_LOSS) == 0)
+                                return NetResponseFlags.Error;
+                        }
                         return NetResponseFlags.Success;
+                    }
+
                 }
                 keyIter.remove();
-
-                // Client socket channel is available for writing and
-                // key is valid (i.e., channel not closed).
-                // if (key.isValid() && key.isWritable())
-                //    handleWrite(key);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -95,6 +107,7 @@ public class Socket {
     public NetResponseFlags send(Message m) {
         return send(m.address, m.buffer);
     }
+
     public NetResponseFlags send(InetSocketAddress a, NetBuffer b) {
         try {
             b.flip();

@@ -27,7 +27,6 @@ ServerLayer::PlayerInfo::PlayerInfo()
 	updateLife();
 }
 
-
 void ServerLayer::ChunkMail::fillWithChunk(Chunk* chunk)
 {
 	c_id = chunk->chunkID();
@@ -100,6 +99,9 @@ void ServerLayer::onAttach()
 void ServerLayer::onDetach()
 {
 	ND_INFO("Closing server: {}", m_name);
+
+	ND_INFO("Disconnecting all players");
+	disconnectAll(m_big_udp_message, m_should_restart ? MES_SERVER_KICK_RESTART : MES_SERVER_KICK_QUIT);
 
 	closeSocket();
 	m_world->saveWorld();
@@ -335,6 +337,7 @@ void ServerLayer::updateSendChunks()
 			//         (int)piece, m_player_book[session].name, len);
 			mes.address = m_player_book[session].address;
 			send(m_socket, mes);
+			ND_TRACE("Sending piece {}", h.piece);
 		}
 	}
 }
@@ -555,6 +558,7 @@ void ServerLayer::onChunkReq(nd::net::Message& m)
 	}
 	CHECK_SESSION_VALID();
 
+	m_player_book[h.session_id].updateLife();
 	ND_TRACE("ChunkReq: Received request for ({},{}):{}, session={}", h.c_x, h.c_y, h.piece, h.session_id);
 
 	auto chunkPtr = m_world->getChunkM(h.c_x, h.c_y);

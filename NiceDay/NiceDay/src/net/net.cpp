@@ -1,6 +1,8 @@
 #include "net.h"
 #include "ndpch.h"
 #include "net.h"
+
+#include <random>
 #ifdef ND_PLATFORM_WINDOWS
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -178,12 +180,28 @@ typedef int sock_address_size;
 typedef socklen_t sock_address_size;
 #endif
 
+
 NetResponseFlags_ receive(Socket& socket, Message& m)
 {
 	sock_address_size SenderAddrSize = sizeof(m.address.src);
 
 	int received = recvfrom(socket.m_sock, m.buffer.data(), m.buffer.capacity(), 0,
 	                        (sockaddr*)&m.address.src, &SenderAddrSize);
+
+	if constexpr (SIMULATE_PACKET_LOSS != 0)
+	{
+		static thread_local std::mt19937 generator;
+		std::uniform_int_distribution<int> distribution(0, SIMULATE_PACKET_LOSS);
+
+
+		if (received != -1)
+		{
+			if (!(distribution(generator) % SIMULATE_PACKET_LOSS))
+			{
+				return NetResponseFlags_Error;
+			}
+		}
+	}
 
 	if (received != -1 /* || received != ERROR_TIMEOUT*/)
 	{

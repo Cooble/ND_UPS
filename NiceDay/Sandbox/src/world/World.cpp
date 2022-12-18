@@ -214,7 +214,7 @@ void World::saveWorld()
 	{
 		json u;
 		u[0] = pos.x;
-		u[1] = pos.x;
+		u[1] = pos.y;
 		j[name] = u;
 	}
 	o << j;

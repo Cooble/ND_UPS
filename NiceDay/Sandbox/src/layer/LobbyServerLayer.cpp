@@ -73,7 +73,7 @@ void LobbyServerLayer::onAttach()
 
 void LobbyServerLayer::onDetach()
 {
-	deinit();
+	deInit();
 }
 
 void LobbyServerLayer::onEvent(nd::Event& e)

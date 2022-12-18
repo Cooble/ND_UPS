@@ -17,6 +17,8 @@ enum NetResponseFlags_
 
 namespace nd::net
 {
+constexpr size_t SIMULATE_PACKET_LOSS = 0;
+
 typedef int SocketID;
 
 struct CreateSocketInfo
@@ -51,8 +53,8 @@ struct Socket
 	SocketID m_sock;
 	Address m_address;
 
-	int m_received_count=0;
-	int m_sent_count=0;
+	int m_received_count = 0;
+	int m_sent_count = 0;
 	int m_received_bytes = 0;
 	int m_sent_bytes = 0;
 
@@ -243,6 +245,7 @@ struct Message
 	Address address;
 	Buffer buffer;
 };
+
 // must be called before any socket madness is used by program
 NetResponseFlags_ init();
 

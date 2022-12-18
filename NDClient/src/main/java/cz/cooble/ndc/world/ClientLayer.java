@@ -51,9 +51,9 @@ public class ClientLayer extends Layer {
 
     private void initTimeouts() {
         t = new Timeout();
-        t.register(TM_INVITATION_ACK, 2000);
-        t.register(TM_CHUNK_REQ, 3000);
-        t.register(TM_INV_REQ, 2000);
+        t.register(TM_INVITATION_ACK, 250);
+        t.register(TM_CHUNK_REQ, 250);
+        t.register(TM_INV_REQ, 250);
         serverTimeout.stop();
     }
 
@@ -229,7 +229,6 @@ public class ClientLayer extends Layer {
             System.out.println("Received foreign chunk piece, discarding");
         }
         serverTimeout.start();
-
     }
 
     private void onInvitation(Message m) {
@@ -413,18 +412,18 @@ public class ClientLayer extends Layer {
                 onPacketReceived(m);
             } catch (Exception e) {
                 e.printStackTrace();
-                errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
-                System.out.println(errorMessage);
-                errorMessage = e.toString();
+               // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
+                System.out.println("Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array()));
+              //  errorMessage = e.toString();
             }
         while (tunnel != null && tunnel.read(m)) {
             try {
                 onPacketReceived(m);
             } catch (Exception e) {
                 e.printStackTrace();
-                errorMessage = "Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array());
-                System.out.println(errorMessage);
-                errorMessage = e.toString();
+                // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
+                System.out.println("Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array()));
+                //  errorMessage = e.toString();
             }
         }
 

@@ -1,6 +1,6 @@
 
 #shader vertex////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#version 330 core
+#version 400 core
 layout(location = 0) in vec4 position;
 layout(location = 1) in vec2 texture_offset;
 layout(location = 2) in vec2 corner_offset;
@@ -23,7 +23,7 @@ void main() {
 //!! because the performance is not that good on most graphics cards except for Intel's integrated GPUs.!! so thats that: no geometry shader
 
 #shader fragment////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#version 330 core
+#version 400 core
 
 uniform sampler2D u_texture;
 uniform sampler2D u_corners;

@@ -230,7 +230,7 @@ bool LobbyServerLayer::createBasicServers()
 		m_cluster.startServer(new ServerLayer(string, address.port(), m_address, playerLimit));
 	}
 	// dont forget to set first server as gateway
-	GATEWAY = servers[0]._Myfirst._Val;
+	GATEWAY = std::get<0>(servers[0]);
 	return true;
 }
 

@@ -1,7 +1,7 @@
 
 #shader vertex
 
-#version 330 core
+#version 400 core
 layout(location = 0) in vec4 position;
 out float v_y;
 void main() {
@@ -11,7 +11,7 @@ void main() {
 
 
 #shader fragment
-#version 330 core
+#version 400 core
 
 layout(location = 0) out vec4 color;
 

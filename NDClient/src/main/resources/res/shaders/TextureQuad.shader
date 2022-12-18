@@ -1,6 +1,6 @@
 #shader vertex
 
-#version 330 core
+#version 400 core
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 uv;
 uniform mat4 u_transform;
@@ -15,7 +15,7 @@ void main() {
 
 
 #shader fragment
-#version 330 core
+#version 400 core
 
 layout(location = 0) out vec4 color;
 

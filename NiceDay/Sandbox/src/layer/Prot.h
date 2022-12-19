@@ -244,7 +244,7 @@ inline const char* ProtStrings[128] = {
 };
 
 
-constexpr const char* BANG = "[_ND_]";
+constexpr const char* BANG = "[]";
 
 struct ProtocolHeader : nd::net::Serializable
 {

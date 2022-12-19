@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class ProtocolHeader implements NetSerializable {
-    public static final String BANG = "[_ND_]";
+    public static final String BANG = "[]";
     public Prot action;
 
     @Override

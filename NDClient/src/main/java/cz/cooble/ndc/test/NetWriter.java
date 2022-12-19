@@ -1,5 +1,6 @@
 package cz.cooble.ndc.test;
 
+import cz.cooble.ndc.Globals;
 import cz.cooble.ndc.net.NetBuffer;
 import cz.cooble.ndc.net.NetSerializable;
 import org.joml.Vector2f;
@@ -29,7 +30,7 @@ public class NetWriter {
     public void putString(String s) {
         buffer.getInner().position(pointer);
         buffer.getInner().put(s.getBytes());
-        buffer.getInner().put((byte) 0);//null terminator
+        buffer.getInner().put((byte) Globals.TERMINATOR);//null terminator
         pointer = buffer.getInner().position();
         buffer.setSize(pointer);
     }

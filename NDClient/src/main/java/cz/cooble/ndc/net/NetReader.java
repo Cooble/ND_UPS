@@ -1,5 +1,6 @@
 package cz.cooble.ndc.net;
 
+import cz.cooble.ndc.Globals;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
 
@@ -37,12 +38,12 @@ public class NetReader {
     public String getString() {
         buffer.getInner().position(pointer);
         int i = 0;
-        while (buffer.getInner().get() != 0)
+        while (buffer.getInner().get() != Globals.TERMINATOR)
             i++;
         byte[] bu = new byte[i];
         buffer.getInner().position(pointer);
         buffer.getInner().get(bu);
-        buffer.getInner().get();//read 0
+        buffer.getInner().get();//read terminator
         pointer = buffer.getInner().position();
         return new String(bu);
     }

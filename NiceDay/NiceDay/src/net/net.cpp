@@ -134,7 +134,7 @@ NetResponseFlags_ createSocket(Socket& s, const CreateSocketInfo& info)
 	/* Bind the socket */
 	if (bind(s.m_sock, (sockaddr*)&s.m_address.src, sizeof(s.m_address)) < 0)
 	{
-		ND_ERROR("Cannot bind socket");
+		ND_ERROR("Cannot bind socket {}", info.port);
 		return NetResponseFlags_Error;
 	}
 

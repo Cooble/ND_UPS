@@ -133,7 +133,7 @@ private:
 	std::unordered_map<SessionID, nd::net::TCPTunnel> m_tunnels;
 
 	//world
-	World* m_world;
+	World* m_world=nullptr;
 
 	// start, stop
 	bool m_should_exit = false;
@@ -244,7 +244,7 @@ public:
 
 private:
 	// SPECIAL ACTIONS
-	void openSocket();
+	bool openSocket();
 	void closeSocket();
 	SessionID allocateNewSessionID();
 	nd::net::TCPTunnel& tun(SessionID);

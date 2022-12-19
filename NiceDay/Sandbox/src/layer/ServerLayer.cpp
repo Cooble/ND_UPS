@@ -40,12 +40,12 @@ void ServerLayer::ChunkMail::fillWithChunk(Chunk* chunk)
 		pending_pieces.push_back(i);
 }
 
-void ServerLayer::openSocket()
+bool ServerLayer::openSocket()
 {
 	CreateSocketInfo info;
 	info.async = true;
 	info.port = m_port;
-	createSocket(m_socket, info);
+	return createSocket(m_socket, info) == NetResponseFlags_Success;
 }
 
 void ServerLayer::closeSocket()
@@ -76,8 +76,15 @@ void ServerLayer::onAttach()
 {
 	m_death_counter = -1;
 	m_should_restart = false;
+	if(!openSocket())
+	{
+		ND_WARN("Could not start server on port {}", m_port);
+		m_should_exit = true;
+		m_should_restart = false;
+		m_death_counter = 0;
+		return; //immeditely closing server
+	}
 	ND_TRACE("Starting server on port {}", m_port);
-	openSocket();
 
 	WorldInfo info = {};
 	strcpy(info.name, m_name.c_str());
@@ -98,6 +105,8 @@ void ServerLayer::onAttach()
 
 void ServerLayer::onDetach()
 {
+	if (!m_world)
+		return;
 	ND_INFO("Closing server: {}", m_name);
 
 	ND_INFO("Disconnecting all players");
@@ -337,7 +346,7 @@ void ServerLayer::updateSendChunks()
 			//         (int)piece, m_player_book[session].name, len);
 			mes.address = m_player_book[session].address;
 			send(m_socket, mes);
-			ND_TRACE("Sending piece {}", h.piece);
+			//ND_TRACE("Sending piece {}", h.piece);
 		}
 	}
 }

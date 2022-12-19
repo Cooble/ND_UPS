@@ -281,9 +281,22 @@ void LobbyServerLayer::onInvReq(nd::net::Message& m)
 	// if finally the server is not alive
 	if (!m_server_book.contains(playerInfo.serverName) || !m_server_book[playerInfo.serverName].isAlive())
 	{
-		ND_WARN("Lobby: InvREQ: Cannot respond: No servers running, not even gateway");
-		sendError(m, h.player, "Refused to connect: No servers running");
-		return;
+		ND_WARN("Lobby: InvREQ: Requested server/GATEWAY not running, searching through all servers");
+
+		playerInfo.serverName = "";
+		for (auto p:m_server_book)
+			if(p.second.isAlive())
+			{
+				playerInfo.serverName = p.first;
+				ND_INFO("Found server that is alive! {}", p.first);
+				break;
+			}
+
+		if (playerInfo.serverName.empty()) {
+			sendError(m, h.player, "Refused to connect: No servers running");
+			ND_WARN("Lobby: InvREQ: No servers are running");
+			return;
+		}
 	}
 
 	// jesus at last redirect request to server

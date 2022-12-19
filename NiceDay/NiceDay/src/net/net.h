@@ -17,6 +17,7 @@ enum NetResponseFlags_
 
 namespace nd::net
 {
+constexpr char TERMINATOR = '#';
 constexpr size_t SIMULATE_PACKET_LOSS = 0;
 
 typedef int SocketID;
@@ -155,7 +156,7 @@ inline void BufferWriter::write<std::string>(const std::string& t)
 	pointer += t.size();
 
 	if (pointer < b.capacity())
-		b.data()[pointer++] = '\0';
+		b.data()[pointer++] = TERMINATOR;
 
 	b.setSize(pointer);
 }
@@ -203,6 +204,14 @@ public:
 	// empty string is not an error, no more space in buffer is
 	bool isStringError() const { return string_error; }
 
+	int strln(char const* c, int maxCount)
+	{
+		int count = 0;
+		int out = 0;
+		while (*(c++) != TERMINATOR && count++ < maxCount);
+		return count;
+	}
+
 	std::string readStringUntilNull(int maxSize)
 	{
 		string_error = false;
@@ -220,21 +229,24 @@ public:
 
 		auto out = b.data() + pointer;
 
-		if (*out == '\0')
+		if (*out == TERMINATOR)
 		{
 			pointer++;
 			return "";
 		}
-#ifdef ND_WINDOWS
-			auto length = strnlen_s(b.data() + pointer, remaingSize);
+
+#ifdef NOT_EX
+#ifdef ND_PLATFORM_WINDOWS
+		auto length = strnlen_s(b.data() + pointer, remaingSize);
 #else
 		auto length = strnlen(b.data() + pointer, remaingSize);
 #endif
-
+#endif
+		auto length = strln(b.data() + pointer, remaingSize);
 		pointer += length;
 
 		//add one to discard null character as well
-		pointer += pointer < b.size() && *(b.data() + pointer) == '\0';
+		pointer += pointer < b.size() && *(b.data() + pointer) == TERMINATOR;
 
 		return std::string(out, length);
 	}

@@ -91,6 +91,7 @@ void LobbyServerLayer::onUpdate()
 
 	while (receive(m_socket, m) == NetResponseFlags_Success)
 	{
+		ND_INFO("RCEIVED");
 		ProtocolHeader header;
 		if (!NetReader(m.buffer).get(header))
 			continue;

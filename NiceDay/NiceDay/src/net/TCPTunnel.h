@@ -118,10 +118,12 @@ public:
 	std::vector<Pac> m_in_window;
 	std::vector<Pac> m_out_window;
 
-	bool m_is_handshaken = false;
 	Pac m_current_write;
 	AckPacket m_current_ack;
 	Address m_address;
+
+	bool m_err=false;
+
 public:
 	TCPTunnel(Socket& socket, Address a, ClientID id, size_t buffSize) :
 		m_socket(socket),
@@ -178,6 +180,7 @@ public:
 	bool write(const Message& m);
 	bool read(Message& m);
 
+	bool isError()const { return m_err; }
 private:
 	void receiveFatPacket(Message& m);
 	void receiveAckPacket(Message& m);
@@ -185,5 +188,7 @@ private:
 	auto& waitingForFirst() { return m_in_window[0]; }
 	// send packets that timed out
 	void flushTimeouts(Message& m);
+	void setError() { m_err = true; }
+
 };
 }

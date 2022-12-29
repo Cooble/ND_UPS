@@ -76,7 +76,7 @@ void ServerLayer::onAttach()
 {
 	m_death_counter = -1;
 	m_should_restart = false;
-	if(!openSocket())
+	if (!openSocket())
 	{
 		ND_WARN("Could not start server on port {}", m_port);
 		m_should_exit = true;
@@ -247,6 +247,8 @@ void ServerLayer::updateUDP(nd::net::Message& m)
 
 void ServerLayer::updateTCP(nd::net::Message& m)
 {
+	std::vector<SessionID> to_remove;
+
 	//tcp poll
 	for (auto& [session, tun] : m_tunnels)
 	{
@@ -266,8 +268,14 @@ void ServerLayer::updateTCP(nd::net::Message& m)
 				break;
 			}
 		}
+		if (tun.isError())
+			to_remove.push_back(session);
 	}
+
 	flushTCP();
+
+	for (SessionID id : to_remove)
+		disconnectClient(m, id, "INVALID_CLIENT_TCP", true);
 }
 
 void ServerLayer::updateHopTimeout(nd::net::Message& m)
@@ -813,7 +821,7 @@ void ServerLayer::disconnectClient(nd::net::Message& m, SessionID id, std::strin
 {
 	if (!m_player_book.contains(id))
 		return;
-	ND_INFO("Disconnecting:  {} with session {}", m_player_book[id].name, id);
+	ND_INFO("Disconnecting:  {} with session {} because {}", m_player_book[id].name, id,reason);
 
 	// Inform all players that this player goes down
 	if (m_player_book[id].isValid)

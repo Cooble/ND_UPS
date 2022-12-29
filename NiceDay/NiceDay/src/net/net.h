@@ -144,8 +144,21 @@ struct BufferWriter
 };
 
 template <>
-inline void BufferWriter::write<std::string>(const std::string& t)
+inline void BufferWriter::write<std::string>(const std::string& tt)
 {
+	std::string what;
+	what += TERMINATOR;
+	std::string with;
+	with += TERMINATOR;
+	with += TERMINATOR;
+
+	std::string t = tt;
+	SUtil::replaceWith(t, what.c_str(), with.c_str());
+
+	if (t.empty())
+		t = " ";
+
+
 	ASSERT(expand || pointer + t.size() <= b.capacity(), "not enough space");
 	if (expand && pointer + t.size() > b.capacity())
 		b.reserve((pointer + t.size()) * 2);
@@ -207,8 +220,16 @@ public:
 	int strln(char const* c, int maxCount)
 	{
 		int count = 0;
-		int out = 0;
-		while (*(c++) != TERMINATOR && count++ < maxCount);
+		while (true)
+		{
+			while (*(c++) != TERMINATOR && count++ < maxCount);
+
+			if (count + 1 >= maxCount || (*c) != TERMINATOR)
+				break;
+
+			c++; //move from the next terminator
+			count += 2; //eat 2 terminators
+		}
 		return count;
 	}
 
@@ -229,11 +250,11 @@ public:
 
 		auto out = b.data() + pointer;
 
-		if (*out == TERMINATOR)
+		/*if (*out == TERMINATOR)
 		{
 			pointer++;
 			return "";
-		}
+		}*/
 
 #ifdef NOT_EX
 #ifdef ND_PLATFORM_WINDOWS
@@ -248,7 +269,18 @@ public:
 		//add one to discard null character as well
 		pointer += pointer < b.size() && *(b.data() + pointer) == TERMINATOR;
 
-		return std::string(out, length);
+		std::string what;
+		what += TERMINATOR;
+		what += TERMINATOR;
+		std::string with;
+		with += TERMINATOR;
+
+		auto o = std::string(out, length);
+
+		SUtil::replaceWith(o, what.c_str(), with.c_str());
+		if (o == " ")
+			return "";
+		return o;
 	}
 };
 

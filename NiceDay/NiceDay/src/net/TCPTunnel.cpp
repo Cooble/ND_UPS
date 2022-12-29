@@ -202,17 +202,19 @@ void TCPTunnel::flushAck(Message& m)
 
 bool TCPTunnel::write(const Message& m)
 {
-	size_t size;
+	constexpr int SIZE_LENGTH = 8;
 
 	auto freeSpace = m_buff_out.freeSpace();
 
-	if (freeSpace < m.buffer.size() + sizeof(size))
+	if (freeSpace < m.buffer.size() + SIZE_LENGTH)
 		return false;
 
-	//size = htonll(m.buffer.size());
-	size = m.buffer.size(); // lets stick with little endian
+	std::stringstream number;
+	number << std::setfill('0') << std::setw(8) << m.buffer.size();
+	std::string size = number.str();
 
-	m_buff_out.write((const char*)&size, sizeof(size));
+
+	m_buff_out.write(size.c_str(), size.size());
 	m_buff_out.write(m.buffer.data(), m.buffer.size());
 
 	return true;
@@ -220,21 +222,29 @@ bool TCPTunnel::write(const Message& m)
 
 bool TCPTunnel::read(Message& m)
 {
-	size_t size;
-	if (m_buff_in.available() <= sizeof(size))
+	constexpr int SIZE_LENGTH = 8;
+	char sizeBuf[SIZE_LENGTH+1]={};
+
+	if (m_buff_in.available() <= SIZE_LENGTH)
 		return false;
 
 	// read the size without moving cursor
-	m_buff_in.read((char*)&size, m_buff_in.tellg(), sizeof(size));
+	m_buff_in.read((char*)&sizeBuf, m_buff_in.tellg(), SIZE_LENGTH);
 
-	//size = ntohll(size);// lets stick with little endian
+
+	errno = 0;
+	auto size = strtoul((const char*)&sizeBuf, nullptr, 10);
+	if (errno) {
+		setError();
+		return false;
+	}
 
 	// whole message is not sent yet
-	if (m_buff_in.available() < sizeof(size) + size)
+	if (m_buff_in.available() < SIZE_LENGTH + size)
 		return false;
 
 	// move cursor over the size
-	m_buff_in.seekg(m_buff_in.tellg() + sizeof(size));
+	m_buff_in.seekg(m_buff_in.tellg() + SIZE_LENGTH);
 	m.buffer.reserve(size);
 	m.buffer.setSize(size);
 

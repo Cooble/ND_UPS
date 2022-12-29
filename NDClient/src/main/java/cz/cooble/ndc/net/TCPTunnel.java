@@ -130,7 +130,6 @@ public class TCPTunnel {
     }
 
 
-
     // returns client id of a message or -1 if message is not tcp
     public static int getClientID(Message m) {
         var h = new SegmentPacket();
@@ -226,18 +225,19 @@ public class TCPTunnel {
         flushTunnelUDP(m);
     }
 
-    private ByteBuffer G = byteBufferAllocate(8);
+    final int M_SIZE_LEN = 8;
+
+    private final ByteBuffer G = byteBufferAllocate(M_SIZE_LEN);
 
     public boolean write(Message m) {
-        int size;
-
         long freeSpace = m_buff_out.freeSpace();
 
-        if (freeSpace < m.buffer.size() + 8)
+        if (freeSpace < m.buffer.size() + M_SIZE_LEN)
             return false;
 
-        size = m.buffer.size();
-        G.putLong(0, size);
+        String size = String.format("%0" + M_SIZE_LEN + "d", m.buffer.size());
+        G.position(0);
+        G.put(size.getBytes());
         m_buff_out.write(G);
         m.buffer.flip();
         m_buff_out.write(m.buffer.getInner());
@@ -245,23 +245,28 @@ public class TCPTunnel {
     }
 
     public boolean read(Message m) {
-        long size;
-        if (m_buff_in.available() <= 8)
+
+        if (m_buff_in.available() <= M_SIZE_LEN)
             return false;
 
         // read the size without moving cursor
         m_buff_in.read(G, m_buff_in.tellg());
-        size = G.getLong(0);
-        //size = ntohll(size);// lets stick with little endian
+        byte[] b = new byte[M_SIZE_LEN];
+        G.position(0);
+        G.get(b);
+        int size = Integer.parseInt(new String(b));
 
-        // whole message is not sent yet
-        if (m_buff_in.available() < 8 + size)
+        if (size <= 0)
+            throw new RuntimeException("Error during tcp parsing");
+
+        // whole message is not received yet
+        if (m_buff_in.available() < M_SIZE_LEN + size)
             return false;
 
         // move cursor over the size
-        m_buff_in.seekg(m_buff_in.tellg() + 8);
-        m.buffer.reserve((int) size);
-        m.buffer.setSize((int) size);
+        m_buff_in.seekg(m_buff_in.tellg() + M_SIZE_LEN);
+        m.buffer.reserve(size);
+        m.buffer.setSize(size);
 
         // read the sweet data
         m_buff_in.read(m.buffer.slice(0, (int) size));

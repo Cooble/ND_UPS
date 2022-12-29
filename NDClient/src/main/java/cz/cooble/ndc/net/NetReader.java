@@ -38,14 +38,37 @@ public class NetReader {
     public String getString() {
         buffer.getInner().position(pointer);
         int i = 0;
-        while (buffer.getInner().get() != Globals.TERMINATOR)
-            i++;
+        while (true) {
+            char c = (char)buffer.getInner().get(pointer+i);
+
+            while (buffer.getInner().get() != Globals.TERMINATOR)
+                i++;
+            if (buffer.getInner().limit() <= pointer + i + 1
+                    || buffer.getInner().get(pointer + i + 1) != Globals.TERMINATOR) {
+                break;
+            }
+            i++;//skip terminator
+            i++;//skip terminator
+            buffer.getInner().get();
+        }
         byte[] bu = new byte[i];
         buffer.getInner().position(pointer);
         buffer.getInner().get(bu);
         buffer.getInner().get();//read terminator
         pointer = buffer.getInner().position();
-        return new String(bu);
+
+        StringBuilder builder = new StringBuilder();
+        var a = new String(bu).toCharArray();
+        for (int j = 0; j < a.length; j++) {
+            char c = a[j];
+            if (c == Globals.TERMINATOR)
+                j++;
+            builder.append(c);
+        }
+        var out =  builder.toString();
+        if(out.equals(" "))
+            return "";
+        return out;
     }
 
     public int getInt() {

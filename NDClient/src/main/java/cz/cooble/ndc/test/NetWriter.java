@@ -28,6 +28,11 @@ public class NetWriter {
     }
 
     public void putString(String s) {
+        // escape terminator
+        s = s.replace(""+Globals.TERMINATOR,Globals.TERMINATOR+""+Globals.TERMINATOR);
+        if(s.isEmpty())
+            s=" ";
+
         buffer.getInner().position(pointer);
         buffer.getInner().put(s.getBytes());
         buffer.getInner().put((byte) Globals.TERMINATOR);//null terminator

@@ -316,7 +316,6 @@ public class ClientLayer extends Layer {
         var a = new ProtocolHeader();
         a.deserialize(new NetReader(m.buffer));
 
-
         if (a.action == Prot.Invitation) {
             onInvitation(m);
         } else if (a.action == Prot.SessionCreated) {

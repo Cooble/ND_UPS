@@ -230,6 +230,9 @@ public:
 			c++; //move from the next terminator
 			count += 2; //eat 2 terminators
 		}
+		// terminator missing
+		if (*(c - 1) != TERMINATOR)
+			return -1;
 		return count;
 	}
 
@@ -250,12 +253,6 @@ public:
 
 		auto out = b.data() + pointer;
 
-		/*if (*out == TERMINATOR)
-		{
-			pointer++;
-			return "";
-		}*/
-
 #ifdef NOT_EX
 #ifdef ND_PLATFORM_WINDOWS
 		auto length = strnlen_s(b.data() + pointer, remaingSize);
@@ -264,6 +261,11 @@ public:
 #endif
 #endif
 		auto length = strln(b.data() + pointer, remaingSize);
+		if(length==-1)
+		{
+			string_error = true;
+			return "";
+		}
 		pointer += length;
 
 		//add one to discard null character as well

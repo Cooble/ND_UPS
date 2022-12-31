@@ -165,6 +165,19 @@ void LobbyServerLayer::checkTimeout()
 }
 
 
+static int int_val(const json& j,const char* c,int defaultVal)
+{
+	if (!j.contains(c))
+		return defaultVal;
+	json a = j[c];
+	if (!a.is_number_unsigned())
+		return defaultVal;
+	uint64_t v = a;
+	if((uint64_t)(uint32_t)v!=v)
+		return defaultVal;
+	return a;
+
+}
 bool LobbyServerLayer::createBasicServers()
 {
 	if (!std::filesystem::exists("settings.json"))
@@ -194,8 +207,7 @@ bool LobbyServerLayer::createBasicServers()
 	json j;
 	i >> j;
 
-
-	m_address = nd::net::Address(j.value("ip", "127.0.0.1"), j.value("port", server_const::LOBBY_PORT));
+	m_address = nd::net::Address(j.value("ip", "127.0.0.1"), int_val(j,"port",server_const::LOBBY_PORT));
 	if (!m_address.isValid() || m_address.isPortReserved())
 	{
 		ND_ERROR("Lobby: Settings parsing failed invalid format or invalid port");
@@ -214,14 +226,14 @@ bool LobbyServerLayer::createBasicServers()
 		for (auto& w : worlds.items())
 		{
 			auto name = w.key();
-			int port = w.value().value("port", 0);
+			int port = int_val(w.value(),"port", 0);
 			auto ad = nd::net::Address(m_address.ip(), port);
 			if (!ad.isValid() || ad.isPortReserved())
 			{
-				ND_ERROR("Invalid port number encountered during settings load.");
+				ND_ERROR("Invalid port number encountered during settings load. {}",name);
 				return false;
 			}
-			auto playerLimit = w.value().value("playerLimit", 0);
+			auto playerLimit = int_val(w.value(),"playerLimit", 0);
 			servers.emplace_back(name, ad,playerLimit);
 		}
 

@@ -91,7 +91,7 @@ struct NetReader : nd::net::BufferReader
 	bool get(std::string& s, int maxLength)
 	{
 		s = readStringUntilNull(maxLength);
-		return !s.empty();
+		return !isStringError();
 	}
 };
 

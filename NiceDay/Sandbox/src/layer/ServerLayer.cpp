@@ -192,6 +192,7 @@ void ServerLayer::updateUDP(nd::net::Message& m)
 		auto sessionID = TCPTunnel::getClientID(m);
 		if (sessionID != -1)
 		{
+			ND_TRACE("Detected tcp message with channel {}", sessionID);
 			auto it = m_tunnels.find(sessionID);
 			if (it == m_tunnels.end())
 				continue;

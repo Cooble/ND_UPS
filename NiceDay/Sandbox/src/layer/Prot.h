@@ -301,8 +301,10 @@ struct EstablishConnectionProtocol : SessionProtocol
 	{
 		if (!SessionProtocol::deserialize(reader))
 			return false;
-		reader.get(player, EstablishConnectionProtocol_STRING_LENGTH);
-		reader.get(server, EstablishConnectionProtocol_STRING_LENGTH);
+		if (!reader.get(player, EstablishConnectionProtocol_STRING_LENGTH))
+			return false;
+		if (!reader.get(server, EstablishConnectionProtocol_STRING_LENGTH))
+			return false;
 
 		// forbid longer names
 		if (player.size() > 11 && server.size() > 32)

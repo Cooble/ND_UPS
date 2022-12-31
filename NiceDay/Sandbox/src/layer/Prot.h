@@ -339,9 +339,11 @@ struct ChunkProtocol : SessionProtocol
 	{
 		if (!SessionProtocol::deserialize(reader))
 			return false;
-		reader.get(c_x);
-		reader.get(c_y);
-		reader.get(piece);
+
+		return 
+			reader.get(c_x) && 
+			reader.get(c_y) && 
+			reader.get(piece);
 
 		return true;
 	}

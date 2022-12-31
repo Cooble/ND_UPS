@@ -74,7 +74,7 @@ public class ClientLayer extends Layer {
         session_id = -1;
         tunnel = null;
         serverAddress = null;
-        ignoreMode=true;
+        ignoreMode = true;
 
         initTimeouts();
     }
@@ -85,15 +85,16 @@ public class ClientLayer extends Layer {
             System.out.println("Disconnecting from server");
             closeSession();
         }
-        ignoreMode=true;
+        ignoreMode = true;
     }
 
     private boolean ignoreMode = true;
+
     public void openSession(String player, InetSocketAddress address) {
         if (isSessionCreated)
             return;
 
-        ignoreMode=false;
+        ignoreMode = false;
 
         playerName = player;
         lobbyAddress = address;
@@ -107,7 +108,7 @@ public class ClientLayer extends Layer {
 
     public void closeSession() {
         initTimeouts();
-        ignoreMode=true;
+        ignoreMode = true;
         if (!isSessionCreated)
             return;
         isSessionCreated = false;
@@ -134,10 +135,12 @@ public class ClientLayer extends Layer {
         t.start(TM_INV_REQ);
     }
 
+    int lastCID;
+
     private void sendChunkReq(Message m, int cid, int piece) {
         System.out.println("Sending chunk request for " + Utils.getX(cid) + ", " + Utils.getY(cid) + " piece=" + piece);
 
-
+        lastCID = cid;
         var a = new ChunkProtocol();
         a.action = Prot.ChunkREQ;
         a.session_id = session_id;
@@ -207,8 +210,12 @@ public class ClientLayer extends Layer {
     private void onChunkACK(Message m) {
         var a = new ChunkProtocol();
         a.deserialize(new NetReader(m.buffer));
-        if(a.session_id!=session_id) {
+        if (a.session_id != session_id) {
             System.out.println("Sus, received foreign chunk ack");
+            return;
+        }
+        if (lastCID != half_int(a.c_x, a.c_y)) {
+            System.out.println("Received chunk piece of unwanted chunkID");
             return;
         }
         // new chunk
@@ -226,7 +233,7 @@ public class ClientLayer extends Layer {
         }
         // chunk already exists, new piece
         else if (chunkBuffer.chunkID() == half_int(a.c_x, a.c_y)) {
-                chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
+            chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
             //System.out.println("Piece " + a.piece + " deserialized");
             pendingPieces.remove(a.piece);
 
@@ -244,7 +251,7 @@ public class ClientLayer extends Layer {
     private void onInvitation(Message m) {
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
-        if(!Objects.equals(playerName, a.player_name)){
+        if (!Objects.equals(playerName, a.player_name)) {
             System.out.println("Received invitation for foreign name");
             return;
         }
@@ -275,7 +282,7 @@ public class ClientLayer extends Layer {
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
 
-        if(!Objects.equals(playerName, a.player_name)){
+        if (!Objects.equals(playerName, a.player_name)) {
             System.out.println("Received session created for foreign name");
             return;
         }
@@ -321,7 +328,7 @@ public class ClientLayer extends Layer {
     private void onQuitReceived(Message m) {
         var a = new ControlProtocol();
         a.deserialize(new NetReader(m.buffer));
-        if(a.session_id!=session_id) {
+        if (a.session_id != session_id) {
             System.out.println("Ojojoj, foreign quit command received");
             return;
         }
@@ -368,7 +375,8 @@ public class ClientLayer extends Layer {
     }
 
     Consumer<ErrorProtocol> onErrorCallback;
-    private void onError(Message m){
+
+    private void onError(Message m) {
         ErrorProtocol e = new ErrorProtocol();
         e.deserialize(new NetReader(m.buffer));
         onErrorCallback.accept(e);
@@ -433,21 +441,21 @@ public class ClientLayer extends Layer {
         // POLL
         while (socket.receive(m) == NetResponseFlags.Success)
             try {
-                if(ignoreMode)
+                if (ignoreMode)
                     throw new RuntimeException("Received message when ignore mode is active");
 
                 onPacketReceived(m);
             } catch (Exception e) {
-               // e.printStackTrace();
-               // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
+                // e.printStackTrace();
+                // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println("Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array()));
-              //  errorMessage = e.toString();
+                //  errorMessage = e.toString();
             }
         while (tunnel != null && tunnel.read(m)) {
             try {
                 onPacketReceived(m);
             } catch (Exception e) {
-               // e.printStackTrace();
+                // e.printStackTrace();
                 // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println("Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array()));
                 //  errorMessage = e.toString();

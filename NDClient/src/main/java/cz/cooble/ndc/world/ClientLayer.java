@@ -83,11 +83,15 @@ public class ClientLayer extends Layer {
             System.out.println("Disconnecting from server");
             closeSession();
         }
+        ignoreMode=true;
     }
 
+    private boolean ignoreMode = true;
     public void openSession(String player, InetSocketAddress address) {
         if (isSessionCreated)
             return;
+
+        ignoreMode=false;
 
         playerName = player;
         lobbyAddress = address;
@@ -103,6 +107,7 @@ public class ClientLayer extends Layer {
         initTimeouts();
         if (!isSessionCreated)
             return;
+        ignoreMode=true;
         isSessionCreated = false;
         sendClose(new Message(500));
         pendingChunkIds.clear();
@@ -408,9 +413,12 @@ public class ClientLayer extends Layer {
         // POLL
         while (socket.receive(m) == NetResponseFlags.Success)
             try {
+                if(ignoreMode)
+                    throw new RuntimeException("Received message when ignore mode is active");
+
                 onPacketReceived(m);
             } catch (Exception e) {
-                e.printStackTrace();
+               // e.printStackTrace();
                // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println("Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array()));
               //  errorMessage = e.toString();
@@ -419,7 +427,7 @@ public class ClientLayer extends Layer {
             try {
                 onPacketReceived(m);
             } catch (Exception e) {
-                e.printStackTrace();
+               // e.printStackTrace();
                 // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println("Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array()));
                 //  errorMessage = e.toString();

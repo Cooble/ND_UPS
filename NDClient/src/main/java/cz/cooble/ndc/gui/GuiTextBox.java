@@ -1,5 +1,6 @@
 package cz.cooble.ndc.gui;
 
+import cz.cooble.ndc.core.App;
 import cz.cooble.ndc.graphics.BatchRenderable2D;
 import cz.cooble.ndc.graphics.BatchRenderer2D;
 import cz.cooble.ndc.graphics.font.Font;
@@ -101,6 +102,17 @@ public class GuiTextBox extends GuiElement {
                 case GLFW_KEY_ESCAPE: {
                     editMode = false;
                     line = "";
+                }
+                break;
+                case GLFW_KEY_V: {
+                    if(e.isControlPressed()){
+                        String clip = App.get().getWindow().getClipboard();
+                        for (int i = 0; i < clip.length(); i++) {
+                            if ((maxLength == -1 || line.length() != maxLength) &&
+                                    isValidChar.isValid(clip.charAt(i)))
+                                    line += (char) clip.charAt(i);
+                        }
+                    }
                 }
                 break;
             }

@@ -14,6 +14,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static cz.cooble.ndc.Globals.REQUEST_TIMEOUTS;
 import static cz.cooble.ndc.core.Utils.half_int;
 import static cz.cooble.ndc.net.prot.ChunkProtocol.CHUNK_PIECE_COUNT;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
@@ -51,9 +52,9 @@ public class ClientLayer extends Layer {
 
     private void initTimeouts() {
         t = new Timeout();
-        t.register(TM_INVITATION_ACK, 250);
-        t.register(TM_CHUNK_REQ, 250);
-        t.register(TM_INV_REQ, 250);
+        t.register(TM_INVITATION_ACK, REQUEST_TIMEOUTS);
+        t.register(TM_CHUNK_REQ, REQUEST_TIMEOUTS);
+        t.register(TM_INV_REQ, REQUEST_TIMEOUTS);
         serverTimeout.stop();
     }
 

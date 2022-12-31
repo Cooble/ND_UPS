@@ -1,0 +1,27 @@
+===========================HAPPY_DAY-TO SERVER====================================
+=========CONNECT=================
+[]#InvitationREQ#1123321#0#Jop# #
+
+[]#InvitationACK#3#2#Jop# #
+
+-2#TCP_ACK#2#1#0#0#
+
+=========SEND_MOVES================
+
+[]#PlayerMoves#16#2#0001#blemc#blemc#0#
+
+=========SEND_BLOCK_MODIFY
+
+-1#TCP#2#0#0#00000028[]#BlockModify#13#3#2#0#0#0#
+
+// confirm TCP packet for BLockModifyACK
+-2#TCP_ACK#2#1#0#0#
+
+=========SEND_ANOTHER_BLOCK_MODIFY
+
+-1#TCP#2#1#28#00000028[]#BlockModify#13#3#2#1#1#0#
+
+// confirm blockmodifyAck
+-2#TCP_ACK#2#1#1#0#
+
+

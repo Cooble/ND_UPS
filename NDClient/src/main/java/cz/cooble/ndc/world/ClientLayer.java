@@ -207,7 +207,10 @@ public class ClientLayer extends Layer {
     private void onChunkACK(Message m) {
         var a = new ChunkProtocol();
         a.deserialize(new NetReader(m.buffer));
-
+        if(a.session_id!=session_id) {
+            System.out.println("Sus, received foreign chunk ack");
+            return;
+        }
         // new chunk
         if (chunkBuffer == null) {
             pendingPieces.clear();
@@ -223,7 +226,7 @@ public class ClientLayer extends Layer {
         }
         // chunk already exists, new piece
         else if (chunkBuffer.chunkID() == half_int(a.c_x, a.c_y)) {
-            chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
+                chunkBuffer.deserialize(m.buffer.getInner(), a.piece);
             //System.out.println("Piece " + a.piece + " deserialized");
             pendingPieces.remove(a.piece);
 
@@ -241,8 +244,13 @@ public class ClientLayer extends Layer {
     private void onInvitation(Message m) {
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
-        invitation_id = a.session_id;
+        if(!Objects.equals(playerName, a.player_name)){
+            System.out.println("Received invitation for foreign name");
+            return;
+        }
+
         invitationServerAddress = Net.Address.build(a.server_name);
+        invitation_id = a.session_id;
         sendInvitationACK(m);
         t.stop(TM_INV_REQ);
         System.out.println("Invitation from lobby received");
@@ -266,6 +274,12 @@ public class ClientLayer extends Layer {
 
         var a = new EstablishConnectionHeader();
         a.deserialize(new NetReader(m.buffer));
+
+        if(!Objects.equals(playerName, a.player_name)){
+            System.out.println("Received session created for foreign name");
+            return;
+        }
+
         if (isSessionCreated) {
             System.out.println("Closing old session " + serverAddress.toString()
                     + " and preparing for new " + invitationServerAddress.toString());
@@ -307,6 +321,10 @@ public class ClientLayer extends Layer {
     private void onQuitReceived(Message m) {
         var a = new ControlProtocol();
         a.deserialize(new NetReader(m.buffer));
+        if(a.session_id!=session_id) {
+            System.out.println("Ojojoj, foreign quit command received");
+            return;
+        }
 
         if (onDisconnect != null)
             onDisconnect.accept(a.message);

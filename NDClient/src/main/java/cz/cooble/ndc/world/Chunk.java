@@ -1,5 +1,7 @@
 package cz.cooble.ndc.world;
 
+import cz.cooble.ndc.world.block.BlockRegistry;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 
@@ -87,10 +89,19 @@ public class Chunk {
     static final int ChunkPieceBlockCount = 52;
 
 
+    private boolean isValidStruct(BlockStruct s){
+        if(BlockRegistry.getBlock(s.block_id)==null)
+            return false;
+        for (int i = 0; i < 4; i++)
+            if(BlockRegistry.getWall( s.wall_id[i])==null)
+                return false;
+        return true;
+    }
+
     public void deserialize(ByteBuffer d,int piece) {
         for (int i = ChunkPieceBlockCount*piece; i < ChunkPieceBlockCount*(piece+1) && i<m_blocks.length; i++) {
             var b = m_blocks[i];
-           // must be little endian
+            // must be little endian
             b.block_metadata = d.getInt();
             b.wall_id[0] = d.getShort();
             b.wall_id[1] = d.getShort();
@@ -100,6 +111,9 @@ public class Chunk {
             b.block_id = d.getShort();
             b.block_corner = d.get();
             d.get();//last padding byte
+
+            if (!isValidStruct(b))
+                throw new RuntimeException("Invalid chunk data");
         }
     }
 

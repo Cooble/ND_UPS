@@ -73,6 +73,7 @@ public class ClientLayer extends Layer {
         session_id = -1;
         tunnel = null;
         serverAddress = null;
+        ignoreMode=true;
 
         initTimeouts();
     }
@@ -105,9 +106,9 @@ public class ClientLayer extends Layer {
 
     public void closeSession() {
         initTimeouts();
+        ignoreMode=true;
         if (!isSessionCreated)
             return;
-        ignoreMode=true;
         isSessionCreated = false;
         sendClose(new Message(500));
         pendingChunkIds.clear();

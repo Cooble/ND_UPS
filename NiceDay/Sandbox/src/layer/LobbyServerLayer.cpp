@@ -333,6 +333,11 @@ void LobbyServerLayer::onInvitation(nd::net::Message& m)
 		ND_WARN("Lobby: Inv: Received invitation from server for player {} who has already timed out", h.player);
 		return;
 	}
+	if (!isServerAddress(m.address))
+	{
+		ND_WARN("Lobby: Invitation: Received invitation from someone who is not server throwing away");
+		return;
+	}
 
 	PlayerInfo& playerInfo = m_player_book[h.player];
 

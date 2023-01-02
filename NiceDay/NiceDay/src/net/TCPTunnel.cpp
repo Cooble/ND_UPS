@@ -23,6 +23,7 @@ void TCPTunnel::receiveFatPacket(Message& m)
 	// too small buffer
 	if (offset >= m_in_window.size())
 	{
+		ND_WARN("Too small buffer for packet id offset={}", offset);
 		m_current_ack.nack_ids.push_back(h.packetId);
 		return;
 	}
@@ -41,12 +42,14 @@ void TCPTunnel::receiveFatPacket(Message& m)
 	packet.memoryIdx = h.memoryIdx;
 	packet.packetId = h.packetId;
 
-	bool writtenAll = m_buff_in.write(m.buffer.data() + reader.pointer, packet.memoryIdx, packet.length) == packet.
-		length;
+	auto written = m_buff_in.write(m.buffer.data() + reader.pointer, packet.memoryIdx, packet.length);
+	bool writtenAll = written == packet.length;
 
 	// cannot save message, buffer full
 	if (!writtenAll)
 	{
+		ND_WARN("cannot save message with length = {} (written only {})", packet.length,written);
+
 		// dont forget to reset packet length to 0, -> no data
 		packet.length = 0;
 		//send buffer is full
@@ -193,6 +196,14 @@ void TCPTunnel::flushAck(Message& m)
 	//nothing to write
 	if (m_current_ack.isEmpty())
 		return;
+
+	std::set<size_t> ddd;
+	for (auto s : m_current_ack.ack_ids)
+		ddd.insert(s);
+	m_current_ack.ack_ids.clear();
+	for (auto s : ddd)
+		m_current_ack.ack_ids.push_back(s);
+
 	NetWriter(m.buffer).put(m_current_ack);
 	m_current_ack.clear();
 
@@ -231,11 +242,13 @@ bool TCPTunnel::read(Message& m)
 	// read the size without moving cursor
 	m_buff_in.read((char*)&sizeBuf, m_buff_in.tellg(), SIZE_LENGTH);
 
+	char* endptr=nullptr;
 
 	errno = 0;
-	auto size = strtoul((const char*)&sizeBuf, nullptr, 10);
-	if (errno) {
+	auto size = strtoul((const char*)&sizeBuf, &endptr, 10);
+	if (errno|| endptr == (const char*)&sizeBuf) {
 		setError();
+		ND_WARN("error during tcp receive");
 		return false;
 	}
 

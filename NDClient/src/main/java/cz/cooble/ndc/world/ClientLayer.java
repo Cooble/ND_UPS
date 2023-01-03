@@ -293,6 +293,7 @@ public class ClientLayer extends Layer {
             closeSession();
         }
 
+        ignoreMode = false;
         // set new address and session
         serverAddress = invitationServerAddress;
         invitationServerAddress = null;
@@ -446,7 +447,7 @@ public class ClientLayer extends Layer {
 
                 onPacketReceived(m);
             } catch (Exception e) {
-                // e.printStackTrace();
+                 e.printStackTrace();
                 // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println("Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array()));
                 //  errorMessage = e.toString();
@@ -455,7 +456,7 @@ public class ClientLayer extends Layer {
             try {
                 onPacketReceived(m);
             } catch (Exception e) {
-                // e.printStackTrace();
+                 e.printStackTrace();
                 // errorMessage = "Received invalid UDP, discarding:\n" + new String(m.buffer.getInner().array());
                 System.out.println("Received invalid TCP, discarding:\n" + new String(m.buffer.getInner().array()));
                 //  errorMessage = e.toString();
